@@ -1436,7 +1436,7 @@ class Meow_WR2X_Core {
 		}
 		else {
 			fwrite( $fh, "$date: {$data}\n" );
-			error_log( $data );
+			error_log( "[PERFECT IMAGES] $data" );
 		}
 		fclose( $fh );
 		return true;

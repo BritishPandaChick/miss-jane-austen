@@ -5,7 +5,7 @@ Donate link: https://meowapps.com/donation/
 Requires at least: 6.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 6.5.1
+Stable tag: 6.5.2
 
 Optimize and manage your images with Perfect Images. Easily replace or regenerate existing images in bulk, set custom sizes, improve performance, create retina versions, and more. Achieve perfect images for your site with ease.
 
@@ -49,6 +49,13 @@ The Pro version adds support for Retina for full-size, support for lazy-loading 
 3. Check if it works! - if it doesn't, read the FAQ, the tutorial, and check the forums.
 
 == Changelog ==
+
+= 6.5.2 (2024/02/02) =
+* Add: Visual clue for media items lacking information, enhancing user awareness.
+* Update: Improved logging for wp_get_image_editor errors for better troubleshooting.
+* Update: Made MetadataViewer's status code more user-friendly, improving usability.
+* Add: Optimized regenerate feature for thumbnails, alongside restoration of the previous version.
+* Fix: Corrected issues with additional image sizes, ensuring comprehensive size coverage.
 
 = 6.5.1 (2023/12/25) =
 * Update: Enhanced thumbnail check before regeneration to process only when necessary.

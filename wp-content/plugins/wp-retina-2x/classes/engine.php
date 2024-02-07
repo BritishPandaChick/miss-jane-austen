@@ -27,7 +27,6 @@ class Meow_WR2X_Engine {
 
 		if ( is_wp_error( $image ) ) {
 			$this->core->log( "Resize failure: " . $image->get_error_message() );
-			error_log( "Resize failure: " . $image->get_error_message() );
 			return null;
 		}
 

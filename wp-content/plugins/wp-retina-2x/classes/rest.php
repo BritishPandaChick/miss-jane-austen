@@ -525,34 +525,55 @@ class Meow_WR2X_Rest
 
 	// Regenerate the Thumbnails
 	function regenerate_thumbnails( $mediaId ) {
-		$this->core->log( "Regenerating thumbnails for $mediaId");
 		require_once ABSPATH . 'wp-admin/includes/image.php';
 		do_action( 'wr2x_before_generate_thumbnails', $mediaId );
 		$file = get_attached_file( $mediaId );
-		$meta = wp_get_attachment_metadata( $mediaId );
-
-		// Get the current image sizes
-		$current_sizes = get_intermediate_image_sizes();
-
-		// Check for sizes in metadata that don't exist in current sizes and delete them
-		foreach ( $meta['sizes'] as $size => $size_info ) {
-			if ( !in_array( $size, $current_sizes ) ) {
-				unset( $meta['sizes'][$size] );
-			}
-		}
-
-		// Check for sizes in current sizes that don't exist in metadata and generate them
-		foreach ( $current_sizes as $size ) {
-			if ( !isset($meta['sizes'][$size] ) ) {
-				$resized = image_make_intermediate_size( $file, $size_info['width'], $size_info['height'], true );
-				if ($resized) {
-					$meta['sizes'][$size] = $resized;
-				}
-			}
-		}
+		$meta = wp_generate_attachment_metadata( $mediaId, $file );
 
 		wp_update_attachment_metadata( $mediaId, $meta );
 		do_action( 'wr2x_generate_thumbnails', $mediaId );
+	}
+
+	function regenerate_thumbnails_optimized( $media_id ) {
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		do_action( 'wr2x_before_generate_thumbnails', $media_id );
+		
+		$file = get_attached_file( $media_id );
+		$meta = wp_get_attachment_metadata( $media_id );
+
+		if ( ! is_array( $meta ) || ! isset( $meta['sizes'] ) ) {
+			$meta = array( 'sizes' => array() );
+		}
+
+		// Get the current registered image sizes
+		$needed_sizes = wp_get_registered_image_subsizes();
+		$option_sizes = $this->core->get_option( 'sizes' );
+
+		foreach ( $option_sizes as $size ) {
+			if ( array_key_exists( $size['name'], $needed_sizes ) ) {
+				if ( ! $size['enabled'] ) {
+					unset( $needed_sizes[ $size['name'] ] );
+				}
+			}
+		}
+		
+		foreach ( $needed_sizes as $size => $size_data ) {
+			$image_path = path_join( dirname( $file ), $meta['sizes'][ $size ]['file'] ?? '' );
+			if ( isset( $meta['sizes'][ $size ] ) && file_exists( $image_path ) && filesize( $image_path ) > 0 ) {
+				// Thumbnail exists, no need to regenerate it.
+				continue;
+			}
+
+			// Generate the thumbnail size.
+			$resized = image_make_intermediate_size( $file, $size_data['width'], $size_data['height'], $size_data['crop'] ?? true );
+
+			if ( $resized ) {
+				$meta['sizes'][ $size ] = $resized;
+			}
+		}
+
+		wp_update_attachment_metadata( $media_id, $meta );
+		do_action( 'wr2x_generate_thumbnails', $media_id );
 	}
 
 	function rest_build_retina( $request ) {
@@ -665,6 +686,7 @@ class Meow_WR2X_Rest
 		require_once ABSPATH . 'wp-admin/includes/image.php';
 		$params = $request->get_json_params();
 		$mediaId = isset( $params['mediaId'] ) ? (int)$params['mediaId'] : null;
+		$optimized = isset( $params['optimized'] ) ? (bool)$params['optimized'] : false;
 
 		// Check errors
 		if ( empty( $mediaId ) ) {
@@ -672,7 +694,12 @@ class Meow_WR2X_Rest
 		}
 
 		// Regenerate
-		$this->regenerate_thumbnails( $mediaId );
+		if ( $optimized ) {
+			$this->regenerate_thumbnails_optimized( $mediaId );
+		}
+		else {
+			$this->regenerate_thumbnails( $mediaId );
+		}
 		$info = $this->core->get_media_status_one( $mediaId );
 		return new WP_REST_Response( [ 'success' => true, 'data' => $info  ], 200 );
 	}
