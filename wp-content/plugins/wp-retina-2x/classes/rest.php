@@ -368,7 +368,7 @@ class Meow_WR2X_Rest
 			$wpml = $this->core->create_sql_if_wpml_original();
 			$ids = $wpdb->get_col( "SELECT ID FROM $wpdb->posts p 
 				WHERE post_type='attachment'
-				AND post_type = 'attachment' ${wpml}
+				AND post_type = 'attachment' {$wpml}
 				AND post_status='inherit'
 				AND ( post_mime_type = 'image/jpeg' OR
 				post_mime_type = 'image/png' OR

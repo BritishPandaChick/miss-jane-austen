@@ -1887,15 +1887,37 @@ class Meow_WR2X_Core {
 		//delete_option( $this->option_name );
 		$options = get_option( $this->option_name, null );
 		$options = $this->check_options( $options );
+
+		$needs_update = false;
+
 		foreach ( $options as $option => $value ) {
 			if ($option === 'retina_sizes' || $option === 'disabled_sizes'
 				|| $option === 'webp_sizes' || $option === 'webp_retina_sizes'
 			) {
+				
+				if ( !is_array( $value ) ) {
+					$this->log( "⚠️ Option $option is not an array. Resetting it." );
+
+					if ( strpos( $value, ',' ) !== false ) {
+						$this->log( "⚠️ Option $option is a string with commas. Splitting it into an array." );
+						$options[$option] = explode( ',', $value );
+					} else {
+						$options[$option] = array( $value );
+					}
+
+					$needs_update = true;
+					continue;
+				}
+
 				$options[$option] = array_values( $value );
 				continue;
 			}
 		}
+
 		$options['sizes'] = $this->get_image_sizes( ARRAY_A, $options );
+
+		if( $needs_update ) { $this->update_options( $options ); }
+
 		return $options;
 	}
 
