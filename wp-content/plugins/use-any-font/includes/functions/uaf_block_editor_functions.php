@@ -51,29 +51,43 @@ function uaf_block_editor_custom_fonts(){
 }
 
 function uaf_update_theme_json_font($uaf_fonts) {
-	if ( function_exists( 'wp_is_block_theme' ) && wp_is_block_theme() && wp_theme_has_theme_json() ) {
-		// Get the current theme.json and fontFamilies defined (if any).
-		$theme_json_raw      = json_decode( file_get_contents( get_stylesheet_directory() . '/theme.json' ), true );
-		$theme_font_families = isset( $theme_json_raw['settings']['typography']['fontFamilies'] ) ? $theme_json_raw['settings']['typography']['fontFamilies'] : array();
 
-		$theme_font_families = array_filter($theme_font_families, function($font) { // REMOVE UAF FONTS
-		    return !isset($font['isUAF']);
-		});
-		$theme_font_families 			= array_values($theme_font_families);		
-		$theme_font_families            = array_merge( $theme_font_families, $uaf_fonts);
+	//if ( function_exists( 'wp_is_block_theme' ) && wp_is_block_theme() ) {
 
-		// Overwrite the previous fontFamilies with the new ones.
-		$theme_json_raw['settings']['typography']['fontFamilies'] = $theme_font_families;
+	if ( function_exists( 'wp_is_block_theme' )) {
 
-		// @codingStandardsIgnoreStart
-		$theme_json        = wp_json_encode( $theme_json_raw, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
-		$theme_json_string = preg_replace( '~(?:^|\G)\h{4}~m', "\t", $theme_json );
+		$theme_font_families			= array();
+		$theme_json_raw					= array();
 
-		// Write the new theme.json to the theme folder.
-		file_put_contents( // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
-			get_stylesheet_directory() . '/theme.json',
-			$theme_json_string
-		);
-		// @codingStandardsIgnoreEnd
+		if (wp_theme_has_theme_json()){
+			// Get the current theme.json and fontFamilies defined (if any).
+			$theme_json_raw      = json_decode( file_get_contents( get_stylesheet_directory() . '/theme.json' ), true );
+			$theme_font_families = isset( $theme_json_raw['settings']['typography']['fontFamilies'] ) ? $theme_json_raw['settings']['typography']['fontFamilies'] : array();
+
+			$theme_font_families = array_filter($theme_font_families, function($font) { // REMOVE UAF FONTS
+			    return !isset($font['isUAF']);
+			});
+			$theme_font_families 			= array_values($theme_font_families);
+		
+		/*} else {
+			$theme_json_raw['$schema'] = 'https://schemas.wp.org/wp/6.5/theme.json';
+			$theme_json_raw['version'] = '2';*/
+		
+
+			$theme_font_families            	= array_merge( $theme_font_families, $uaf_fonts);
+
+			// Overwrite the previous fontFamilies with the new ones.
+			$theme_json_raw['settings']['typography']['fontFamilies'] = $theme_font_families;
+
+			// @codingStandardsIgnoreStart
+			$theme_json        = wp_json_encode( $theme_json_raw, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+			$theme_json_string = preg_replace( '~(?:^|\G)\h{4}~m', "\t", $theme_json );
+
+			// Write the new theme.json to the theme folder.
+			file_put_contents( // phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions
+				get_stylesheet_directory() . '/theme.json',
+				$theme_json_string
+			);
+		}
 	}
 }

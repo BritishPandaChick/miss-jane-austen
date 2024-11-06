@@ -30,8 +30,8 @@ class Meow_WR2X_Core {
 		$wr2x_engine = $this->engine;
 
 		$this->set_defaults();
-		$this->init();
-		//add_action( 'plugins_loaded', array( $this, 'init' ) );
+		//$this->init();
+		add_action( 'plugins_loaded', array( $this, 'init' ) );
 		include( trailingslashit( WR2X_PATH ) . 'classes/api.php' );
 		if ( class_exists( 'MeowPro_WR2X_Core' ) ) {
 			new MeowPro_WR2X_Core( $this, $this->engine );
@@ -50,7 +50,10 @@ class Meow_WR2X_Core {
 		add_filter( 'generate_rewrite_rules', array( 'Meow_WR2X_Admin', 'generate_rewrite_rules' ) );
 		add_filter( 'retina_validate_src', array( $this, 'validate_src' ) );
 		add_filter( 'wp_calculate_image_srcset', array( $this, 'calculate_image_srcset' ), 1000, 5 );
-		add_filter( 'wp_calculate_image_srcset', array( $this, 'replace_jpg_with_webp_in_srcset' ), 1000, 5 );
+
+		add_filter( 'wp_calculate_image_srcset', array( $this, 'replace_with_webp_in_srcset' ), 1000, 5 );
+		add_filter( 'wp_get_attachment_image_src', array( $this,'replace_with_webp_in_src' ), 1000, 4 );
+
 		add_action( 'after_setup_theme', array( $this, 'add_image_sizes' ) );
 
 		if ( $options['image_replace'] ) {
@@ -196,6 +199,13 @@ class Meow_WR2X_Core {
 	function add_image_sizes() {
 		$custom_image_sizes = $this->get_option( 'custom_image_sizes' );
 		foreach ( $custom_image_sizes as $details ) {
+			
+			if ( in_array( $details['crop'], ['yes', 'no'] ) ) {
+				$details['crop'] = $details['crop'] === 'yes';
+			} else {
+				$details['crop'] = explode( '-', $details['crop'] );
+			}
+
 			add_image_size( $details['name'], $details['width'], $details['height'], $details['crop'] );
 		}
 	}
@@ -431,7 +441,7 @@ class Meow_WR2X_Core {
 			$nodes_count++;
 			$img_pathinfo = $this->get_pathinfo_from_image_src( $tag->getAttribute('src') );
 			$filepath = trailingslashit( $this->get_upload_root() ) . $img_pathinfo;
-			$system_retina = $this->get_retina( $filepath );
+			$system_retina = $this->get_retina( $filepath ) ;
 			if ( !empty( $system_retina ) ) {
 				$retina_pathinfo = $this->cdn_this( ltrim( str_replace( $this->get_upload_root(), "", $system_retina ), '/' ) );
 				$buffer = str_replace( $img_pathinfo, $retina_pathinfo, $buffer );
@@ -501,12 +511,39 @@ class Meow_WR2X_Core {
 			}
 		}
 		$this->log( "WP's srcset: " . $count . " retina files added out of " . $total . " image sizes" );
+
+		
 		return $retinized_srcset;
 	}
 
-	function replace_jpg_with_webp_in_srcset( $sources, $size, $image_src, $image_meta, $attachment_id ) {
-		if ( $this->get_option( 'disable_responsive' ) )
+	function replace_with_webp_in_src( $image, $attachment_id, $size, $icon ) {
+		if ( $this->get_option( 'webp_method' ) !== 'Responsive' ) {
+			return $image;
+		}
+
+		if ( !is_array( $image ) || empty( $image ) ) {
+			return $image;
+		}
+
+		$upload_dir = wp_upload_dir();
+		$pathinfo = pathinfo( $image[0] );
+		$filename = $pathinfo['basename'];
+		$webp_filename = $filename . $this->webp_avif_extension();
+		
+		$webp_path = trailingslashit( $upload_dir['path'] ) . $webp_filename;
+
+		if ( file_exists( $webp_path ) ) {
+			$image[0] =  trailingslashit( $pathinfo['dirname'] ) . $webp_filename;
+		}
+
+		return $image;
+	}
+
+	function replace_with_webp_in_srcset( $sources, $size, $image_src, $image_meta, $attachment_id ) {
+		if ( $this->get_option( 'disable_responsive' ) ){
 			return null;
+		}
+			
 		if ( empty( $sources ) || $this->get_option( 'webp_method' ) !== 'Responsive' ) {
 			return $sources;
 		}
@@ -523,8 +560,15 @@ class Meow_WR2X_Core {
 			return ( $needle_len === 0 || 0 === substr_compare( $haystack, $needle, - $needle_len ) );
 		};
 
+		$image_extensions = array('jpg', 'jpeg', 'png');
+		$image_extensions = apply_filters('wr2x_replace_ext_in_srcset', $image_extensions);
+
+		$image_extensions_regex = implode('|', array_map(function($ext) {
+			return '\.' . $ext . '$';
+		}, $image_extensions));
+
 		foreach ($sources as &$source) {
-			if ( preg_match('/\.jpg$|\.jpeg$/', $source['url']) ) {
+			if ( preg_match( '/' . $image_extensions_regex . '/', $source['url'] )  ) {
 				$filename = null;
 				foreach ( $sizes as $key => $size_filename ) {
 					if ( $str_ends_with( $source['url'], $size_filename ) ) {
@@ -533,13 +577,14 @@ class Meow_WR2X_Core {
 						break;
 					}
 				}
-				if ( !$filename || !file_exists( trailingslashit( $upload_dir['basedir'] ) . trailingslashit( $pathinfo['dirname'] ) . $filename . $this->webp_extension() ) ) {
+				if ( !$filename || !file_exists( trailingslashit( $upload_dir['basedir'] ) . trailingslashit( $pathinfo['dirname'] ) . $filename . $this->webp_avif_extension() ) ) {
 					continue;
 				}
-				$webp_url = $source['url'] . $this->webp_extension();
+				$webp_url = $source['url'] . $this->webp_avif_extension();
 				$source['url'] = $webp_url;
 			}
 		}
+
 		return $sources;
 	}
 
@@ -914,7 +959,7 @@ class Meow_WR2X_Core {
 				$result .= '<li class="meow-bk-gray" title="' . $this->format_title( $i, $size ) . '">'
 					. self::size_shortname( $i ) . '</li>';
 			else {
-				error_log( "Retina: This status is not recognized: " . $status );
+				$this->log( "Retina: This status is not recognized: " . $status );
 			}
 		}
 		$result .= '</ul>';
@@ -1053,18 +1098,17 @@ class Meow_WR2X_Core {
 		if ( empty( $pathinfo ) || !isset( $pathinfo['dirname'] ) ) {
 			if ( empty( $file ) ) {
 				$this->log( "An empty filename was given to \$this->get_retina()." );
-				error_log( "An empty filename was given to \$this->get_retina()." );
 			}
 			else {
 				$this->log( "Pathinfo is null for " . $file . "." );
-				error_log( "Pathinfo is null for " . $file . "." );
 			}
 			return null;
 		}
 		$retina_file = trailingslashit( $pathinfo['dirname'] ) . $pathinfo['filename'] .
 			$this->retina_extension() . ( isset( $pathinfo['extension'] ) ? $pathinfo['extension'] : "" );
-		if ( file_exists( $retina_file ) )
+		if ( file_exists( $retina_file ) ){
 			return $retina_file;
+		}
 		$this->log( "Retina file at '{$retina_file}' does not exist." );
 		return null;
 	}
@@ -1075,18 +1119,16 @@ class Meow_WR2X_Core {
 		if ( empty( $pathinfo ) || !isset( $pathinfo['dirname'] ) ) {
 			if ( empty( $file ) ) {
 				$this->log( "An empty filename was given to \$this->get_webp()." );
-				error_log( "An empty filename was given to \$this->get_webp()." );
 			}
 			else {
 				$this->log( "Pathinfo is null for " . $file . "." );
-				error_log( "Pathinfo is null for " . $file . "." );
 			}
 			return null;
 		}
 		$webp_file = trailingslashit( $pathinfo['dirname'] )
 			. $pathinfo['filename']
 			. ( isset( $pathinfo['extension'] ) ? "." . $pathinfo['extension'] : "" )
-			. $this->webp_extension();
+			. $this->webp_avif_extension();
 		if ( file_exists( $webp_file ) )
 			return $webp_file;
 		$this->log( "WebP file at '{$webp_file}' does not exist." );
@@ -1099,11 +1141,9 @@ class Meow_WR2X_Core {
 		if ( empty( $pathinfo ) || !isset( $pathinfo['dirname'] ) ) {
 			if ( empty( $file ) ) {
 				$this->log( "An empty filename was given to \$this->get_webp_retina()." );
-				error_log( "An empty filename was given to \$this->get_webp_retina()." );
 			}
 			else {
 				$this->log( "Pathinfo is null for " . $file . "." );
-				error_log( "Pathinfo is null for " . $file . "." );
 			}
 			return null;
 		}
@@ -1111,9 +1151,10 @@ class Meow_WR2X_Core {
 			. $pathinfo['filename']
 			. $this->retina_extension()
 			. ( isset( $pathinfo['extension'] ) ? $pathinfo['extension'] : "" )
-			. $this->webp_extension();
-		if ( file_exists( $webp_retina_file ) )
+			. $this->webp_avif_extension();
+		if ( file_exists( $webp_retina_file ) ){
 			return $webp_retina_file;
+		}
 		$this->log( "WebP Retina file at '{$webp_retina_file}' does not exist." );
 		return null;
 	}
@@ -1152,6 +1193,7 @@ class Meow_WR2X_Core {
 			return $this->get_retina_from_remote_url( $url );
 		$this->log( "Retina PATH: " . $system_retina, true);
 		$retina_url = $this->rewrite_url_to_retina( $url );
+		$retina_url = $this->rewrite_retina_to_optimized( $retina_url );
 		$this->log( "Retina URL: " . $retina_url, true);
 		return $retina_url;
 	}
@@ -1172,6 +1214,27 @@ class Meow_WR2X_Core {
 	function rewrite_url_to_retina( $url ) {
 		$whereisdot = strrpos( $url, '.' );
 		$url = substr( $url, 0, $whereisdot ) . $this->retina_extension() . substr( $url, $whereisdot + 1 );
+
+		return $url;
+	}
+
+	function rewrite_retina_to_optimized( $url ) {
+		if ( $this->get_option( 'disable_responsive' ) ){
+			return $url;
+		}
+		if ( $this->get_option( 'webp_method' ) !== 'Responsive' ) {
+			return $url;
+		}
+
+		$opt_url = $url . $this->webp_avif_extension();
+		//check if the file exists
+		$opt_path = $this->from_url_to_system( $opt_url );
+		if ( $opt_path ) {
+			$this->log( "🟢 Optimized URL for Retina: " . $opt_url );
+			return $opt_url;
+		}
+
+		//if the file doesn't exist, return the original URL
 		return $url;
 	}
 
@@ -1257,6 +1320,12 @@ class Meow_WR2X_Core {
 		$options = $options ?? [];
 		$needs_update = false;
 
+		if ( $options == [] ) {
+			$options = $this->get_all_options();
+		}
+
+		$webp_enabled = $options['module_webp_enabled'];
+
 		global $_wp_additional_image_sizes;
 		foreach ( get_intermediate_image_sizes() as $s ) {
 
@@ -1282,20 +1351,29 @@ class Meow_WR2X_Core {
 				$needs_update = true;
 				$retina = false;
 			}
-			$webp = in_array( $s, $this->webp_sizes );
-			if ( !$enabled && $webp ) {
-				$this->webp_sizes = array_diff( $this->webp_sizes, array( $s ) );
-				$options['webp_sizes'] = $this->webp_sizes;
-				$needs_update = true;
-				$webp = false;
+
+			$webp = false;
+			$webp_retina = false;
+
+			if ( $webp_enabled ) {
+				$webp = in_array( $s, $this->webp_sizes );
+			
+				if ( !$enabled && $webp ) {
+					$this->webp_sizes = array_diff( $this->webp_sizes, array( $s ) );
+					$options['webp_sizes'] = $this->webp_sizes;
+					$needs_update = true;
+					$webp = false;
+				}
+				$webp_retina = in_array( $s, $this->webp_retina_sizes );
+				if ( (!$enabled || !$retina) && $webp_retina ) {
+					$this->webp_retina_sizes = array_diff( $this->webp_retina_sizes, array( $s ) );
+					$options['webp_retina_sizes'] = $this->webp_retina_sizes;
+					$needs_update = true;
+					$webp_retina = false;
+				}
 			}
-			$webp_retina = in_array( $s, $this->webp_retina_sizes );
-			if ( (!$enabled || !$retina) && $webp_retina ) {
-				$this->webp_retina_sizes = array_diff( $this->webp_retina_sizes, array( $s ) );
-				$options['webp_retina_sizes'] = $this->webp_retina_sizes;
-				$needs_update = true;
-				$webp_retina = false;
-			}
+
+			
 
 			$sizes[$s] = array( 
 				'width' => $width, 
@@ -1409,19 +1487,57 @@ class Meow_WR2X_Core {
 		return !!$debug;
 	}
 
-	function get_logs_path() {
-		$path = $this->get_option( 'logs_path' );
-		if ( $path && file_exists( $path ) ) {
-			return $path;
+	function get_logs() {
+		$log_file_path = $this->get_logs_path();
+
+		if ( !file_exists( $log_file_path ) ) {
+			return "Empty log file.";
 		}
-		$uploads_dir = wp_upload_dir();
-		$path = trailingslashit( $uploads_dir['basedir'] ) . WR2X_PREFIX . "_" . $this->random_ascii_chars() . ".log";
-		if ( !file_exists( $path ) ) {
-			touch( $path );
+
+		$content = file_get_contents( $log_file_path );
+		$lines = explode( "\n", $content );
+		$lines = array_filter( $lines );
+		$lines = array_reverse( $lines );
+		$content = implode( "\n", $lines );
+		return $content;
+	}
+
+	function clear_logs() {
+		$logPath = $this->get_logs_path();
+		if ( file_exists( $logPath ) ) {
+			unlink( $logPath );
 		}
+
 		$options = $this->get_all_options();
-		$options['logs_path'] = $path;
+		$options['logs_path'] = null;
 		$this->update_options( $options );
+	}
+
+	function get_logs_path() {
+		$uploads_dir = wp_upload_dir();
+		$uploads_dir_path = trailingslashit( $uploads_dir['basedir'] );
+
+		$path = $this->get_option( 'logs_path' );
+
+		if ( $path && file_exists( $path ) ) {
+			// make sure the path is legal (within the uploads directory with the WR2X_PREFIX and log extension)
+			if ( strpos( $path, $uploads_dir_path ) !== 0 || strpos( $path, WR2X_PREFIX ) === false || substr( $path, -4 ) !== '.log' ) {
+				$path = null;
+			} else {
+				return $path;
+			}
+		}
+
+		if ( !$path ) {
+			$path = $uploads_dir_path . WR2X_PREFIX . "_" . $this->random_ascii_chars() . ".log";
+			if ( !file_exists( $path ) ) {
+				touch( $path );
+			}
+			$options = $this->get_all_options();
+			$options['logs_path'] = $path;
+			$this->update_options( $options );
+		}
+
 		return $path;
 	}
 
@@ -1436,7 +1552,7 @@ class Meow_WR2X_Core {
 		}
 		else {
 			fwrite( $fh, "$date: {$data}\n" );
-			error_log( "[PERFECT IMAGES] $data" );
+			//error_log( "[PERFECT IMAGES] $data" );
 		}
 		fclose( $fh );
 		return true;
@@ -1464,7 +1580,12 @@ class Meow_WR2X_Core {
 		return '@2x.';
 	}
 
-	function webp_extension() {
+	function webp_avif_extension() {
+
+		if ( $this->get_option( 'generate_avif', false ) ) {
+			return '.avif';
+		}
+			
 		return '.webp';
 	}
 
@@ -1608,7 +1729,7 @@ class Meow_WR2X_Core {
 					$normal_file = trailingslashit( $basepath ) . $meta['sizes'][$name]['file'];
 					$pathinfo = pathinfo( $normal_file ) ;
 					
-					$new_webp_ext = $pathinfo['extension'] === 'webp' ? '' : $this->webp_extension();
+					$new_webp_ext = $pathinfo['extension'] === 'webp' ? '' : $this->webp_avif_extension();
 					$webp_file = trailingslashit( $pathinfo['dirname'] ) . $pathinfo['filename'] . '.' . $pathinfo['extension'] . $new_webp_ext;
 				}
 				// None of the file exist
@@ -1630,7 +1751,7 @@ class Meow_WR2X_Core {
 
 		// Full-Size (if required in the settings)
 		$fullsize_required = $this->get_option( "webp_full_size" ) && class_exists( 'MeowPro_WR2X_Core' );
-		$webp_file = trailingslashit( $pathinfo_fullsize['dirname'] ) . $pathinfo_fullsize['filename'] . '.' . $pathinfo_fullsize['extension'] . $this->webp_extension();
+		$webp_file = trailingslashit( $pathinfo_fullsize['dirname'] ) . $pathinfo_fullsize['filename'] . '.' . $pathinfo_fullsize['extension'] . $this->webp_avif_extension();
 		if ( $webp_file && file_exists( $webp_file ) )
 			$result['full-size'] = 'EXISTS';
 		else if ( $fullsize_required && $webp_file )
@@ -1693,7 +1814,7 @@ class Meow_WR2X_Core {
 				) {
 					$normal_file = trailingslashit( $basepath ) . $meta['sizes'][$name]['file'];
 					$pathinfo = pathinfo( $normal_file ) ;
-					$new_webp_ext = $pathinfo['extension'] === 'webp' ? '' : $this->webp_extension();
+					$new_webp_ext = $pathinfo['extension'] === 'webp' ? '' : $this->webp_avif_extension();
 					$webp_retina_file = trailingslashit( $pathinfo['dirname'] ) . $pathinfo['filename'] . $this->retina_extension() . $pathinfo['extension'] . $new_webp_ext;
 				}
 				// None of the file exist
@@ -1880,6 +2001,7 @@ class Meow_WR2X_Core {
 			'gif_thumbnails_disabled' => false,
 			'logs_path' => null,
 			'custom_image_sizes' => [],
+			'generate_avif' => false,
 		);
 	}
 
@@ -1929,13 +2051,12 @@ class Meow_WR2X_Core {
 		foreach ( $plugin_options as $option => $default ) {
 			// The option already exists
 			if ( array_key_exists( $option, $options ) ) {
-				continue;
-			}else{
-				error_log( '[PERFECT IMAGES] ⚙️ Option does not exist: ' . $option . '. Adding it.' );
+					continue;
 			}
+			//$this->log( '⚙️ Option does not exist: ' . $option . '. Adding it.' );
 			// The option does not exist, so we need to add it.
 			// Let's use the old value if any, or the default value.
-			$options[$option] = get_option( 'wr2x_' . $option, $default );
+			$options[ $option ] = get_option( 'wr2x_' . $option, $default );
 			delete_option( 'wr2x_' . $option );
 			$hasChanges = true;
 		}
@@ -2028,12 +2149,14 @@ class Meow_WR2X_Core {
 			}
 			return;
 		}
+
 		if ( in_array( $crop, ['yes', 'no'] ) ) {
 			$crop = $crop === 'yes';
 		} else {
 			$crop = explode( '-', $crop );
 		}
-		add_image_size( $name, $width, $height, $crop );
+
+		add_image_size( $name, $width, $height, false );
 	}
 
 	private function random_ascii_chars( $length = 8 ) {

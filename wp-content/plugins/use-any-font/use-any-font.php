@@ -5,7 +5,7 @@ Plugin Name: Use Any Font
 Plugin URI: https://dineshkarki.com.np/use-any-font
 Description: Embed any font in your website
 Author: Dnesscarkey
-Version: 6.3.05
+Version: 6.3.10
 Author URI: https://dineshkarki.com.np/use-any-font
 */
 
@@ -24,6 +24,8 @@ add_action('admin_menu', 'uaf_create_menu');
 add_action('admin_enqueue_scripts', 'uaf_admin_assets');
 add_action('wp_enqueue_scripts', 'uaf_client_assets');
 add_action('admin_notices', 'uaf_admin_notices');
+
+add_action('after_switch_theme', 'uaf_write_css');
 
 add_action( 'wp_ajax_uaf_predefined_font_interface', 'uaf_predefined_font_interface' );
 

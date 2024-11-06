@@ -4,14 +4,21 @@ function uaf_lite_api_key_generate(){
 		jQuery('#uaf_api_key_generate').val('Generating...');
 	},
 	error: function(){
-		jQuery('#uaf_api_key_generate').val(' Error ! ');		
+		jQuery('#uaf_api_key_generate').val(' Error ! ');	
+		jQuery('.nav-tab-wrapper').before(
+		    '<div class="notice notice-error is-dismissible" id="message">' +
+		    '<p>Unexpected Error Occurred. Please enable/disable alternative server from settings tab and try again.</p>' +
+		    '</div>'
+		);		
 	},
 	success: function(result){
         var dataReturn 	= JSON.parse(result);
 		key 			= dataReturn.key;
 		jQuery('#uaf_api_key').val(key);
 		jQuery('#uaf_api_key_generate').val('Click Verify to Complete');
-    }});
+    },
+    timeout: 60000
+	});
 }
 
 function open_add_font(){
@@ -87,7 +94,7 @@ jQuery('document').ready(function(){
 		   error: function(jqXHR, textStatus, errorThrown) 
 	        {
 	            jQuery('#font_upload_message').attr('class','error');
-				jQuery('#font_upload_message').html('Unexpected Error Occured. Please set Use PHP Uploader to Yes from Settings Tab and try again.');
+				jQuery('#font_upload_message').html('Unexpected Error Occured. Please enable/disable alternative server from settings tab and try again.');
 				jQuery('#submit-uaf-font').attr('disabled',false);
 	        }	
 	    });

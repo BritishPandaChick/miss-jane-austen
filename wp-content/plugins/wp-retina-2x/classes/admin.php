@@ -32,11 +32,6 @@ class Meow_WR2X_Admin extends MeowCommon_Admin {
 			['wr2x_perfect_images-vendor'], $cache_buster 
 		);
 
-		// Load the fonts
-		wp_register_style( 'meow-neko-ui-lato-font', 
-			'//fonts.googleapis.com/css2?family=Lato:wght@100;300;400;700;900&display=swap');
-		wp_enqueue_style( 'meow-neko-ui-lato-font' );
-
 		// Localize and options
 		global $wplr;
 		wp_localize_script( 'wr2x_perfect_images-index', 'wr2x_retina', array_merge( [

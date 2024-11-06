@@ -50,7 +50,7 @@ add_thickbox();
                 <p>
                      <label>Font File *</label>
                      <span class="field">
-                            <input type="file" id="fontfile" name="fontfile" value="" class="uaf_required" accept=".woff2,.woff,.ttf,.otf" />
+                            <input type="file" id="fontfile" name="fontfile" value="" class="uaf_required" accept=".woff2,.woff,.ttf,.otf,.eot" />
                             <span class="field_error">Please select font file.</span>
                             <br/>
                             <em>Accepted Font Format : <?php echo esc_html(join(", ",$GLOBALS['uaf_fix_settings']['allowedFontFormats'])); ?> | Font Size: Upto <?php echo esc_html($GLOBALS['uaf_fix_settings']['allowedFontSize']) ?> MB</em><br/>
@@ -66,7 +66,7 @@ add_thickbox();
                             <input type="hidden" name="convert_response" id="convert_response" value="" />
                             <input type="hidden" name="submit-uaf-font-js" id="submit-uaf-font" value="Upload" />
                             <input type="submit" name="submit-uaf-font-js" id="submit-uaf-font" class="button-primary" value="Upload" />
-
+                            <?php wp_nonce_field( 'uaf_font_upload_js', 'uaf_nonce' ); ?>
                             <br/>
                             <span>By clicking on Upload, you confirm that you have rights to use this font.</span>
                     </span>

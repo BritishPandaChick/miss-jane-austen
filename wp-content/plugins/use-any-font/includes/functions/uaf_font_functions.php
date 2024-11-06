@@ -291,7 +291,7 @@ function uaf_save_font_assign(){
 		$elements 			= array();
 	}	
 	
-	$custom_elements		= trim(sanitize_text_field($_POST['custom_elements']));
+	$custom_elements		= trim(sanitize_textarea_field($_POST['custom_elements']));
 
 	$fontsData      		= uaf_get_uploaded_font_data();
 	$font_name 				= $fontsData[$font_key]['font_name'];

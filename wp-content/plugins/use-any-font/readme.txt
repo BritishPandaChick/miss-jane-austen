@@ -1,30 +1,42 @@
 === Use Any Font | Custom Font Uploader ===
 Contributors: dnesscarkey
-Tags: custom fonts, font embed, font uploader, typography, install font 
-Requires at least: 3.0
-Tested up to: 6.4.2
-Stable tag: 6.3.05
+Tags: custom fonts, font manager, font uploader, typography, google fonts
+Requires at least: 4.0
+Tested up to: 6.6.2
+Stable tag: 6.3.10
+Requires PHP: 7.0
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Upload custom fonts using font uploader. Custom fonts are auto converted to compressed woff2 for better performance. Self Hosted & GDPR compliant custom font plugin.
+Upload custom fonts with custom font uploader. Auto converts to woff2 for better performance. Self-hosted, GDPR compliant, and easy custom font plugin
 
 == Description ==
-Upload any custom fonts you wish and give your site a elegant look. Quickly change font without need of css knowledge. Or you can select from our 23,871+ predefined font collection to add in your site. It even has google fonts which you can store in your own server. 
+Upload any custom fonts to give your site an elegant look. Easily change fonts without CSS knowledge or select from 23,871+ predefined fonts to add to your site, including Google fonts stored on your server.
 
-Click <a href="https://dineshkarki.com.np/use-any-font/demo" target="_blank">HERE</a> for Use Any Font working demo.
+Click <a href="https://dineshkarki.com.np/use-any-font/demo" target="_blank">HERE</a> for a Use Any Font working demo.
 
-Use Any Font gives you freedom to intall custom fonts in your wordpress website. It is different than other font embed services which gives you countable number of fonts to select from neither the one that stores your custom font in remote server. You can use any custom fonts if you have its font format (ttf,otf,woff) without being dependent to other's server uptime. You can just upload one format and the rest needed formats to work in all browsers are automatically converted even in woff2 compressed format for latest browsers and faster load time.
+Use Any Font lets you install custom fonts in your WordPress website. Unlike other font embed services, it doesn’t limit your font choices or store your custom fonts on a remote server. Upload any font format (ttf, otf, woff) and our font uploader auto converts it to woff2 for faster load times and compatibility across all browsers. With our easy-to-use font uploader, you can seamlessly add custom fonts and manage your site's typography. The plugin supports self-hosted and GDPR-compliant solutions, ensuring your fonts are SEO-friendly and quickly embedded with @font-face.
 
-<strong>Features</strong>
+<strong>Key Features</strong>
 
-* Quick and easy to setup. Change font with ease.
-* Supports all browsers.
-* Uploaded custom fonts are automatically converted to compressed woff2 format for faster loading. 
-* Font conversion within the font uploader and quick font assign interface. You can select pre defined html tags or assign it to custom css.
-* Use uploaded custom fonts directly from Wordpress Editor, Gutenberg Editor, 
+* <strong>Easy Font Upload, Supports all browsers : </strong>
+Upload font in one format, all required format for browser compatibily is auto converted by our font convertor. Supports ttf, otf, woff, and woff2 font formats.<br/><br/>
+* <strong>Fastest Font Load ( 30% Faster ) : </strong>
+Automatically convert uploaded custom fonts to compressed woff2 format with Brotli, achieving 30% faster loading.<br/><br/>
+* <strong>Easy Font Assign : </strong>
+Quickly assign uploaded font with inbuilt font assign interface. You can select pre defined html tags or assign it to custom css.<br/><br/>
+* <strong>SEO Friendly & GDPR compliant : </strong>
+Fonts embedded with @font-face CSS for quick loading and SEO benefits. Custom Fonts are stored on Your Server for Faster Loading and full GDPR compliant <br/><br/>
+* <strong>Large Font Upload upto 25 MB : </strong>
+Some fonts are larger in size. Our font uploader allows you to upload custom font upto 25 MB. <br/><br/>
+* <strong>Font Variations : </strong>
+Upload custom fonts with their various styles and weights. <br/><br/>
+* <strong>Editor and Visual Builder Support : </strong>
+Use uploaded custom fonts from WordPress Editor, Gutenberg Editor, 
 <a href="http://www.elegantthemes.com/affiliates/idevaffiliate.php?id=39880" title="custom font in Divi builder" target="_blank">Divi Builder</a>, 
 <a href="https://wordpress.org/plugins/siteorigin-panels/" title="Custom font in Site Origin Page Buider" target="_blank">Site Origin Page Buider</a>, 
 <a href="https://wordpress.org/plugins/elementor/" title="Elementor Page Builder" target="_blank">Elementor Page Builder</a>,
-<a href="https://www.wpbeaverbuilder.com/?fla=2054&campaign=use-any-font" title="custom font in Beaver Builder" target="_blank">Beaver Builder</a>, 
+<a href="https://www.wpbeaverbuilder.com/?fla=2054&campaign=use-any-font" title="custom font in Beaver Builder" target="_blank">Beaver Builder</a>,
 <a href="https://themify.me/member/aff/go/dnesscarkey/?cr=aHR0cHM6Ly90aGVtaWZ5Lm1lL2J1aWxkZXI=" title="custom font in Themify Builder" target="_blank">Themify Builder</a>,
 <a href="https://wordpress.org/themes/kadence/" title="custom font in Kadence Theme and Kadence Blocks" target="_blank">Kadence Theme and Blocks</a>,
 <a href="https://oxygenbuilder.com/" title="custom font in Oxygen Builder" target="_blank">Oxygen Builder</a>,
@@ -35,20 +47,19 @@ Use Any Font gives you freedom to intall custom fonts in your wordpress website.
 <a href="https://themeisle.com/" title="custom font in themeisle neva theme" target="_blank">Themeisle</a>,
 <a href="https://bit.ly/3auJKzt" title="custom font in Revolution Slider" target="_blank">Revolution Slider</a>,
 <a href="https://wpbakery.com/" title="custom font in WPBakery Page Builder" target="_blank">WPBakery Page Builder ( Js Composer )</a>,
-and any visual builder using the class. 
-* Custom fonts uploaded can be directly used from Theme options panel for major themeforest themes like <a href="https://bit.ly/3auJKzt" target="_blank">Avada, X Theme, Flatsome, Salient, Porto, Shopkeeper, Oshine, WPLMS Learning Management System Theme, KLEO, WoodMart, ListingPro, SimpleMag, ROSA 1, 907, Voice, Grand Restaurant, LeadEngine, Service Finder, MagPlus, Hostiko, Adifier, Puca, GreenMart, Reco, VidoRev, Halena and many more known themes. (1000+). Check out full list here.</a>
-* Supports font format including ttf, otf, woff, woff2 but you only need to upload font in 1 format. Other required fonts are converted automatically by our font convertor.
-* Accepts custom font file upto 25 MB.
-* Embed fonts using @font-face css. SEO friendly and quick loading due to woff2 compression.
-* Multiple custom fonts can be used.
-* Faster load time as your custom fonts are stored on your own server.
-* Supports font assign based on language for WPML and Polylang multi language plugin.
-* Added font display property in @font-face
+More... and any visual builder using the class. <br/><br/>
+* <strong>Theme Compatibility : </strong>
+Custom fonts uploaded can be directly used from Theme options panel for major themeforest themes like <a href="https://bit.ly/3auJKzt" target="_blank">Avada, X Theme, Flatsome, Salient, Porto, Shopkeeper, Oshine, WPLMS Learning Management System Theme, KLEO, WoodMart, ListingPro, SimpleMag, ROSA 1, 907, Voice, Grand Restaurant, LeadEngine, Service Finder, MagPlus, Hostiko, Adifier, Puca, GreenMart, Reco, VidoRev, Halena and many more known themes. (1000+). Check out full list here.</a><br/><br/>
+* <strong>Language Support : </strong>
+Assign fonts based on language with WPML and Polylang plugins.<br/><br/>
+* <strong>Font Display Property : </strong>
+CSS property managing font loading behavior in @font-face.<br/><br/>
 
 <strong>Support</strong>
 
-* <a href="https://wordpress.org/support/plugin/use-any-font/" target="_blank">Support Forum</a> to quickly resolve your issues.
-* Or you can also send msg using Facebook Msg widget from our website. <a href="https://dineshkarki.com.np">https://dineshkarki.com.np</a>
+* Visit our <a href="https://wordpress.org/support/plugin/use-any-font/" target="_blank">Support Forum</a> for quick issue resolution.
+* Utilize our Facebook Message widget on our website at <a href="https://dineshkarki.com.np">https://dineshkarki.com.np</a>.
+* Reach out via email using the form found at <a href="https://dineshkarki.com.np/contact">https://dineshkarki.com.np/contact</a>.
 
 <strong>Font Conversion API Usage</strong>
 
@@ -57,7 +68,6 @@ and any visual builder using the class.
 * We don't store your fonts in our server neither any of your information except the API key details. Our server deletes the temporary file after the font upload is complete. Your font files are served from your own server.
 * For font conversion, our plugin uses server2.dnesscarkey.org and server3.dnesscarkey.org and it is only dedicated to Use Any Font plugin.
 * For Font Conversion API terms and condition. Please visit <a href="https://dineshkarki.com.np/use-any-font/terms-conditions">here</a>.
-
 
 <strong>Installation Video</strong>
 [youtube http://www.youtube.com/watch?v=QzGaWIPVwEk]
@@ -88,7 +98,7 @@ Please do write us after integration and we will add it in our supported list an
 
 = Which font format does plugin accepts and the font size ? =
 
-Currently, ttf, otf, woff font format are accepted but you only need to upload font in 1 format other needed formats to work in all browser are auto generated by our font convertor. Font file upto 25MB is acceptable. However, we suggest you to use smaller ones as far as possible. The font file size directly affects your site load time. 
+Currently, we accept ttf, otf, woff, and woff2 font formats, but you only need to upload the font in one format; other necessary formats for browser compatibility are automatically generated by our font converter. Font files up to 25MB are acceptable. However, we recommend using smaller ones whenever possible, as the font file size directly affects your site's load time.
 
 = From where can i get the font files ? =
 
@@ -97,6 +107,13 @@ Mostly you can download the font files from internet. There are many sites that 
 = Does it works with multiple fonts ? =
 
 Ya, it works with multiple fonts. For multiple font conversion request, you need to get the Premium Key.
+
+= How to add font variations ? =
+
+1. Goto Font Upload Tab
+2. Click on Font Upload button in the right side.
+3. Tick enable multiple font variation option. After that you will get select box to select the font weight and style.
+4. Please make sure you use the same custom font name for all the variations.
 
 = Do i need to manually convert fonts ? =
 
@@ -116,11 +133,11 @@ Its built-in Font Upload and Font assign section allows you to assign custom fon
 
 = Can I assign font based on language ? =
 
-Ya, Our plugin allows you to assign font based on language. It currently supports WPML and Polylang. Quick font changer based on language used. If you are using some others multi lingual plugin, please do contact us and we will try to integrate with our plugin. 
+Yes, our plugin allows you to assign fonts based on language. Currently, it supports WPML and Polylang, offering a quick font changer based on the language used. If you are using another multilingual plugin, please contact us, and we will try to integrate it with our plugin.
 
 = Where are my fonts stored ? =
 
-All the fonts are stored in your own server. Our server only convert the fonts and sends back. It is stored in wp-content/uploads/useanyfont folder. So there won't be different fonts path and will be indentical to your siteurl.
+All fonts are stored on your server. Our server only converts the fonts and sends them back. They are stored in the wp-content/uploads/useanyfont folder. Therefore, there won't be different font paths; they will be identical to your site URL.
 
 = Does my font depends upon plugin's server uptime ? =
 
@@ -128,8 +145,9 @@ No, our server is needed during font conversion only. After that all fonts are s
 
 = Not working for me. What can i do ? =
 
-* <a href="https://wordpress.org/support/plugin/use-any-font/" target="_blank">Support Forum</a> to quickly resolve your issues.
-* Or you can also send msg using Facebook Msg widget from our website. <a href="https://dineshkarki.com.np">https://dineshkarki.com.np</a>
+* Visit our <a href="https://wordpress.org/support/plugin/use-any-font/" target="_blank">Support Forum</a> for quick issue resolution.
+* Utilize our Facebook Message widget on our website at <a href="https://dineshkarki.com.np">https://dineshkarki.com.np</a>.
+* Reach out via email using the form found at <a href="https://dineshkarki.com.np/contact">https://dineshkarki.com.np/contact</a>.
 
 = How can theme / plugin developer integrate Use Any Font ? =
 
@@ -152,11 +170,27 @@ Please do write us after integration and we will add it in our supported list.
 
 == Changelog ==
 
+= 6.3.10 =
+* Fixed editor issue with Genesis and some non block themes. 
+
+= 6.3.09 =
+* Added noonce for Js Font Upload.
+
+= 6.3.08 =
+* Fixed custom element multiline issue.
+* Added font support for non blocked themes. Uploaded Font can be selected in Block Editor from Typography section.
+
+= 6.3.07 =
+* Better error handling.
+
+= 6.3.06 =
+* Fixed font upload issue for woff format. 
+
 = 6.3.05 =
 * Fixed font weight sorting issue. 
 
 = 6.3.04 =
-* Fixed null issue in typography
+* Fixed null issue in font typography
 
 = 6.3.03 =
 * Fixed error for theme.json file missing scenario. 
@@ -168,7 +202,7 @@ Please do write us after integration and we will add it in our supported list.
 * Added support for Bricks Builder and Themeisle
 
 = 6.2.98 =
-* Fixed font assign issue in Poly Lang
+* Fixed custom font assign issue in Poly Lang
 
 = 6.2.97 =
 * Fixed custom element assign issue.
@@ -198,7 +232,7 @@ Please do write us after integration and we will add it in our supported list.
 * Tested with PHP 8.1
 
 = 6.2.8 =
-* Sanitization.
+* Sanitization for custom font upload.
 
 = 6.2.6 =
 * Removed use of PHP uploader.
@@ -225,7 +259,7 @@ Please do write us after integration and we will add it in our supported list.
 * Added wpnonce for forms
 
 = 6.1.7 =
-* Fixed rtl issue for Font Search
+* Fixed rtl issue for Font Typography Search
 
 = 6.1.6 =
 * Fixed undefined variable notice.
@@ -257,7 +291,7 @@ Please do write us after integration and we will add it in our supported list.
 * Fix count warning issue.
 
 = 6.0.3 =
-* Fix font not listing in page builders and themes typography.
+* Fix font assign not listing in page builders and themes typography.
 
 = 6.0.2 =
 * Support for older PHP versions.
@@ -279,7 +313,7 @@ Please do write us after integration and we will add it in our supported list.
 * Removed i from italic tags so that it won't affect icons.
 
 = 5.11.2 =
-* Extra error handling for font manager. 
+* Extra error handling for custom font manager. 
 
 = 5.11.1 =
 * Added support for WPBakery Page Builder (Js Composer). Adds custom uploaded fonts to WPBakery Typography list.

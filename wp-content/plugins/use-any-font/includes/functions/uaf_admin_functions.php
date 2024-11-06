@@ -53,22 +53,30 @@ function uaf_api_key_activate(){
 	$uaf_api_key 			= trim(sanitize_key($_POST['uaf_api_key']));
 	$uaf_site_url			= site_url();
 	if (!empty($uaf_api_key)){
-		$api_key_return = wp_remote_get($GLOBALS['uaf_user_settings']['uaf_server_url'].'/uaf_convertor/validate_key.php?license_key='.$uaf_api_key.'&url='.$uaf_site_url, array('timeout'=>300,'sslverify'=>false,'user-agent'=>get_bloginfo( 'url' )));
+		$api_key_return = wp_remote_get($GLOBALS['uaf_user_settings']['uaf_server_url'].'/uaf_convertor/validate_key.php?license_key='.$uaf_api_key.'&url='.$uaf_site_url, array('timeout'=>60,'sslverify'=>false,'user-agent'=>get_bloginfo( 'url' )));
 		if ( is_wp_error( $api_key_return ) ) {
 		   $error_message 		= $api_key_return->get_error_message();
 		   $return['body'] 		= "Something went wrong: $error_message";
 		   $return['status'] 	= 'error';
 		} else {
-		    $api_key_return = json_decode($api_key_return['body']);
-			if ($api_key_return->status == 'success'){
-				update_option('uaf_api_key', $uaf_api_key);
-				update_option('uaf_activated_url', base64_encode($uaf_site_url));
-				update_option('uaf_hide_key', 'no');
-				uaf_get_options();
-				uaf_write_css();
-			}
-			$return['body'] 	= $api_key_return->msg;
-		   	$return['status'] 	= $api_key_return->status;
+		    $response_code = wp_remote_retrieve_response_code($api_key_return);
+	        $response_body = wp_remote_retrieve_body($api_key_return);
+
+	        if ($response_code == 200) {
+	            $api_key_return = json_decode($response_body);
+	            if ($api_key_return->status == 'success') {
+	                update_option('uaf_api_key', $uaf_api_key);
+	                update_option('uaf_activated_url', base64_encode($uaf_site_url));
+	                update_option('uaf_hide_key', 'no');
+	                uaf_get_options();
+	                uaf_write_css();
+	            }
+	            $return['body'] 	= $api_key_return->msg;
+	            $return['status'] 	= $api_key_return->status;
+	        } else {
+	            $return['body'] 	= 'Unexpected Error Occured. Please enable/disable alternative server from settings tab and try again.';
+	            $return['status'] 	= 'error';
+	        }
 		}
 	} else {
 		$return['body'] 	= 'Please keep API key to activate.';
@@ -82,21 +90,29 @@ function uaf_api_key_deactivate(){
 	$uaf_api_key			= $GLOBALS['uaf_user_settings']['uaf_api_key'];
 	$uaf_activated_url		= base64_decode($GLOBALS['uaf_user_settings']['uaf_activated_url']);
 
-	$api_key_return 	= wp_remote_get($GLOBALS['uaf_user_settings']['uaf_server_url'].'/uaf_convertor/deactivate_key.php?license_key='.$uaf_api_key.'&url='.$uaf_activated_url, array('timeout'=>300,'sslverify'=>false,'user-agent'=>get_bloginfo( 'url' )));
+	$api_key_return 	= wp_remote_get($GLOBALS['uaf_user_settings']['uaf_server_url'].'/uaf_convertor/deactivate_key.php?license_key='.$uaf_api_key.'&url='.$uaf_activated_url, array('timeout'=>60,'sslverify'=>false,'user-agent'=>get_bloginfo( 'url' )));
 	if ( is_wp_error( $api_key_return ) ) {
 	   $error_message 	= $api_key_return->get_error_message();
 	   $return['body']  	= "Something went wrong: $error_message";
 	   $return['status']     = 'error';
 	} else {
-	    $api_key_return = json_decode($api_key_return['body']);
-		if ($api_key_return->status == 'success'){
-			update_option('uaf_api_key', '');
-			update_option('uaf_activated_url', '');
-			uaf_get_options();
-			uaf_write_css();
-		}
-		$return['status']   = $api_key_return->status;
-		$return['body'] 	= $api_key_return->msg;
+	    $response_code = wp_remote_retrieve_response_code($api_key_return);
+        $response_body = wp_remote_retrieve_body($api_key_return);
+
+        if ($response_code == 200) {
+            $api_key_return = json_decode($response_body);
+            if ($api_key_return->status == 'success'){
+                update_option('uaf_api_key', '');
+                update_option('uaf_activated_url', '');
+                uaf_get_options();
+                uaf_write_css();
+            }
+            $return['status'] 	= $api_key_return->status;
+            $return['body'] 	= $api_key_return->msg;
+        } else {
+            $return['body'] 	= 'Unexpected Error Occured. Please enable/disable alternative server from settings tab and try again.';
+            $return['status'] 	= 'error';
+        }
 	}	
 	return $return;
 }
@@ -249,12 +265,16 @@ function uaf_trigger_actions(){
 		}
 
 		if (isset($_POST['submit-uaf-font-js'])){   
-		    $font_weight = $font_style  = '';
-		    if (isset($_POST['enable_font_variation'])){
-		    	$font_weight 	= sanitize_key($_POST['font_weight']);
-		    	$font_style 	= sanitize_key($_POST['font_style']);
-		    }
-		    $actionReturn = uaf_save_font_files($_POST['font_name'], $font_weight, $font_style, $_POST['convert_response']);
+		    if ( isset($_POST['uaf_nonce']) && wp_verify_nonce($_POST['uaf_nonce'], 'uaf_font_upload_js')) {
+			    $font_weight = $font_style  = '';
+			    if (isset($_POST['enable_font_variation'])){
+			    	$font_weight 	= sanitize_key($_POST['font_weight']);
+			    	$font_style 	= sanitize_key($_POST['font_style']);
+			    }
+			    $actionReturn = uaf_save_font_files($_POST['font_name'], $font_weight, $font_style, $_POST['convert_response']);
+			} else {
+				$actionReturn = $actionReturnNonceError;
+			}
 		}
 
 		/* NOT in use till API accepts font file in Binary
