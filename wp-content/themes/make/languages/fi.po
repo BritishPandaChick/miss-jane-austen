@@ -480,6 +480,10 @@ msgstr "Täysi leveys"
 msgid "Boxed"
 msgstr "Laatikko-ulkoasu"
 
+#: inc/customizer/helpers.php:68
+msgid "Wide"
+msgstr "Leveä"
+
 #: inc/customizer/helpers.php:76
 msgid "Post header"
 msgstr "Artikkelin otsake"

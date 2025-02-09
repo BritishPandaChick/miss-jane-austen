@@ -329,6 +329,9 @@ msgstr "%s から"
 msgid "Full-width"
 msgstr "横幅いっぱい"
 
+msgid "Wide"
+msgstr "広い"
+
 msgid "General"
 msgstr "一般"
 

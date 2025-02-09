@@ -558,6 +558,10 @@ msgstr "Полный формат"
 msgid "Boxed"
 msgstr "Блочный"
 
+#: inc/customizer/helpers.php:76
+msgid "Wide"
+msgstr "Широкий"
+
 #: inc/customizer/helpers.php:84
 msgid "Post header"
 msgstr "Заголовок поста"

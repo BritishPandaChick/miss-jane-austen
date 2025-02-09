@@ -508,7 +508,7 @@ class Meow_WR2X_Engine {
     function delete_attachment( $attach_id, $post ) {
 
 		$deleteFullSize = true;
-		$shouldDeleteWr2x = add_filter( 'wr2x_should_delete_attachment', true, $attach_id, $post );
+		$shouldDeleteWr2x = apply_filters( 'wr2x_should_delete_attachment', true, $attach_id, $post );
 
 		if ( !$shouldDeleteWr2x ) {
 			return;

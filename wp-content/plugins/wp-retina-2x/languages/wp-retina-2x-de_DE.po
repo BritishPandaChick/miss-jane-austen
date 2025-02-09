@@ -109,7 +109,7 @@ msgstr ""
 #: classes/core.php:704
 #, php-format
 msgid ""
-"The retina version of the Full-Size image is missing.<br />Full Size Retina "
+"The retina version of the Full-Size image is missing.<br />Full-Size Retina "
 "has been checked in the Settings and this image is therefore required.<br /"
 ">Please drag & drop an image of at least <b>%dx%d</b> in the <b>Full-Size "
 "Retina Upload</b> column."

@@ -1,6 +1,7 @@
 <?php
 
 require trailingslashit( WR2X_PATH ) . 'vendor/autoload.php';
+require_once( ABSPATH . 'wp-admin/includes/image.php' );
 
 class Meow_WR2X_Core {
 
@@ -45,7 +46,7 @@ class Meow_WR2X_Core {
 		$this->disabled_sizes = $options['disabled_sizes'] ?? array();
 		$this->webp_sizes = $options['webp_sizes'] ?? array();
 		$this->webp_retina_sizes = $options['webp_retina_sizes'] ?? array();
-		$this->lazy = $options["picturefill_lazysizes"] && class_exists( 'MeowPro_WR2X_Core' );
+
 		add_action( 'wp_enqueue_scripts', array( $this, 'wp_enqueue_scripts' ) );
 		add_filter( 'generate_rewrite_rules', array( 'Meow_WR2X_Admin', 'generate_rewrite_rules' ) );
 		add_filter( 'retina_validate_src', array( $this, 'validate_src' ) );
@@ -74,10 +75,6 @@ class Meow_WR2X_Core {
 		// Disable Image-Sizes based on Settings.
 		if ( !empty( $this->disabled_sizes ) ) {
 			$this->disable_image_sizes();
-		}
-		// Disable WordPress Lazy if the Retina Lazy is enabled.
-		if ( $this->lazy ) {
-			add_filter( 'lazy_loader_disabled', '__return_true' );
 		}
 
 		if ( MeowCommon_Helpers::is_rest() ) {
@@ -277,7 +274,6 @@ class Meow_WR2X_Core {
 		if ( !isset( $buffer ) || trim( $buffer ) === '' )
 			return $buffer;
 		$html = new KubAT\PhpSimple\HtmlDomParser();
-		$lazysize = $this->get_option( "picturefill_lazysizes" ) && class_exists( 'MeowPro_WR2X_Core' );
 		$killSrc = !$this->get_option( "picturefill_keep_src" );
 		$nodes_count = 0;
 		$nodes_replaced = 0;
@@ -307,25 +303,6 @@ class Meow_WR2X_Core {
 
 				// SRC-SET already exists, let's check if LazySize is used
 				if ( !empty( $element->srcset ) ) {
-					if ( $lazysize ) {
-						$this->log( "The src-set has already been created but it will be modifid to data-srcset for lazyload." );
-						$element->class = $element->class . ' lazyload';
-						$element->{'data-srcset'} =  $element->srcset;
-						if ( $killSrc ) {
-							$element->src = null;
-						}
-						else {
-							// If SRC is kept, to avoid it to load before LazySizes kicks in, we set srcset to a blank 1x1 pixel.
-							$element->srcset = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-						}
-						$to = $element;
-						$buffer = str_replace( trim( $from, "</> "), trim( $to, "</> " ), $buffer );
-						$this->log( "The img tag '$from' was rewritten to '$to'" );
-						$nodes_replaced++;
-					}
-					else {
-						$this->log( "The src-set has already been created. Tag ignored." );
-					}
 					continue;
 				}
 
@@ -340,12 +317,8 @@ class Meow_WR2X_Core {
 					$retina_url = $this->cdn_this( $retina_url );
 					$img_url = $this->cdn_this( $element->src );
 					$img_url  = apply_filters( 'wr2x_img_url', $img_url  );
-					if ( $lazysize ) {
-						$element->class = $element->class . ' lazyload';
-						$element->{'data-srcset'} =  "$img_url, $retina_url 2x";
-					}
-					else
-						$element->srcset = "$img_url, $retina_url 2x";
+					$element->srcset = "$img_url, $retina_url 2x";
+
 					if ( $killSrc )
 						$element->src = null;
 					else {
@@ -1030,7 +1003,7 @@ class Meow_WR2X_Core {
 			// Status Icon
 			if ( is_array( $status ) && $i == 'full-size' ) {
 				$result .= '<div class="meow-sized-image meow-bk-red"></div>';
-				$statusText = sprintf( __( "The retina version of the Full-Size image is missing.<br />Full Size Retina has been checked in the Settings and this image is therefore required.<br />Please drag & drop an image of at least <b>%dx%d</b> in the <b>Full-Size Retina Upload</b> column.", 'wp-retina-2x' ), $status['width'], $status['height'] );
+				$statusText = sprintf( __( "The retina version of the Full-Size image is missing.<br />Full-Size Retina has been checked in the Settings and this image is therefore required.<br />Please drag & drop an image of at least <b>%dx%d</b> in the <b>Full-Size Retina Upload</b> column.", 'wp-retina-2x' ), $status['width'], $status['height'] );
 			}
 			else if ( is_array( $status ) ) {
 				$result .= '<div class="meow-sized-image meow-bk-red"></div>';
@@ -1325,6 +1298,7 @@ class Meow_WR2X_Core {
 		}
 
 		$webp_enabled = $options['module_webp_enabled'];
+		$retina_enabled = $options['module_retina_enabled'];
 
 		global $_wp_additional_image_sizes;
 		foreach ( get_intermediate_image_sizes() as $s ) {
@@ -1380,7 +1354,7 @@ class Meow_WR2X_Core {
 				'height' => $height, 
 				'crop' => $crop,
 				'enabled' => $enabled,
-				'retina_enabled' => $enabled && $retina,
+				'retina_enabled' => $enabled && $retina && $retina_enabled,
 				'retina' => $retina,
 				'webp' => $webp,
 				'webp_retina' => $webp_retina,
@@ -1453,6 +1427,382 @@ class Meow_WR2X_Core {
 		}
 		return $active_sizes;
 	}
+
+	// Regenerate the Thumbnails
+
+	function regenerate_thumbnails_ai( $mediaId ) {
+
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+	
+		do_action( 'wr2x_before_generate_thumbnails', $mediaId );
+		
+		$file       = get_attached_file( $mediaId );
+		$meta       = wp_generate_attachment_metadata( $mediaId, $file );
+		
+		// Thumbnails that were already generated
+		$generated_sizes = isset( $meta['sizes'] ) ? $meta['sizes'] : array();
+	
+		// All registered sizes
+		$needed_sizes = wp_get_registered_image_subsizes();
+		$option_sizes = $this->get_option( 'sizes' );
+	
+		// Remove disabled sizes from the needed list
+		foreach ( $option_sizes as $size ) {
+			if ( array_key_exists( $size['name'], $needed_sizes ) && ! $size['enabled'] ) {
+				unset( $needed_sizes[ $size['name'] ] );
+			}
+		}
+	
+		// Identify missing sizes
+		$missing_sizes = array_diff_key( $needed_sizes, $generated_sizes );
+	
+		// If no sizes are missing, we are done
+		if ( empty( $missing_sizes ) ) {
+			do_action( 'wr2x_generate_thumbnails', $mediaId );
+			return new WP_Error( 'no_missing_sizes', 'No missing sizes found' );
+		}
+	
+		// Determine largest width/height needed
+		$max_width  = 0;
+		$max_height = 0;
+		foreach ( $missing_sizes as $size_data ) {
+			$max_width  = max( $max_width, $size_data['width'] );
+			$max_height = max( $max_height, $size_data['height'] );
+		}
+
+		// Add some more width/height to account for the max sizes thumbnails as well
+		$max_width  += 150;
+		$max_height += 150;
+	
+		// Use AI upscale
+		$ai_service = $this->get_option( 'ai_service', 'none' );
+		$ai_result  = $this->use_ai_upscale( $mediaId, $ai_service, [ 'width' => $max_width, 'height' => $max_height ] );
+	
+		// If AI fails, fallback
+		if ( ! $ai_result['status'] ) {
+			$msg = '❌ AI upscaling failed for media ID ' . $mediaId . ': ' . $ai_result['message'];
+			$this->log( $msg );
+
+			wp_update_attachment_metadata( $mediaId, $meta );
+			do_action( 'wr2x_generate_thumbnails', $mediaId );
+			return new WP_Error( 'ai_upscale_failed', $msg );
+		}
+	
+		// Download the AI upscaled image
+		$ai_image_url = $ai_result['data'];
+
+		// Check if the download_url() function is available
+		if ( ! function_exists( 'download_url' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+		$tmp_file     = download_url( $ai_image_url );
+	
+		if ( is_wp_error( $tmp_file ) ) {
+			$msg = '❌ AI image download failed for media ID ' . $mediaId . ': ' . $tmp_file->get_error_message();
+			$this->log( $msg );
+
+			// Download failed
+			wp_update_attachment_metadata( $mediaId, $meta );
+			do_action( 'wr2x_generate_thumbnails', $mediaId );
+			return new WP_Error( 'ai_image_download_failed', $msg );
+		}
+	
+		// Backup the original file
+		$original_dir      = pathinfo( $file, PATHINFO_DIRNAME );
+		$original_filename = basename( $file );
+		$backup_path       = trailingslashit( $original_dir ) . 'wr2x-ai-upscale-backup-' . $original_filename;
+	
+		if ( ! copy( $file, $backup_path ) ) {
+			$msg = '❌ Backup failed for media ID ' . $mediaId;
+			$this->log( $msg );
+
+			// Cannot backup original
+			@unlink( $tmp_file );
+			wp_update_attachment_metadata( $mediaId, $meta );
+			do_action( 'wr2x_generate_thumbnails', $mediaId );
+			return new WP_Error( 'backup_failed', $msg );
+		}
+	
+		// Replace the original file with the AI image
+		@unlink( $file ); // remove the original (we have a backup)
+		if ( ! @rename( $tmp_file, $file ) ) {
+			$msg = '❌ AI image move failed for media ID ' . $mediaId;
+			$this->log( $msg );
+
+			// Cannot move AI image to original location
+			// Restore backup
+			@copy( $backup_path, $file );
+			@unlink( $backup_path );
+			@unlink( $tmp_file );
+			wp_update_attachment_metadata( $mediaId, $meta );
+			do_action( 'wr2x_generate_thumbnails', $mediaId );
+			return new WP_Error( 'ai_image_move_failed', $msg );
+		}
+	
+		// Now generate metadata as if the original file is the large AI image
+		$ai_meta = wp_generate_attachment_metadata( $mediaId, $file );
+	
+		// Restore the original file
+		@unlink( $file );
+		@rename( $backup_path, $file );
+
+		$history = $this->get_option( 'ai_history', [] );
+
+		// Merge the missing sizes from AI meta into the original meta
+		if ( ! empty( $ai_meta['sizes'] ) ) {
+			foreach ( $ai_meta['sizes'] as $size_name => $size_meta ) {
+				if ( array_key_exists( $size_name, $missing_sizes ) ) {
+					$meta['sizes'][$size_name] = $size_meta;
+
+					$history[ $mediaId ][ $size_name ] = [
+						'time' => time(),
+						'operation' => 'upscale',
+						'service' => $ai_service,
+		
+						'width' => $size_meta['width'],
+						'height' => $size_meta['height'],
+					];
+				}
+			}
+		}
+
+		// Update the history for the generated sizes
+		$this->update_option( 'ai_history', $history );
+	
+		// Update the attachment metadata with the new sizes
+		wp_update_attachment_metadata( $mediaId, $meta );
+	
+		do_action( 'wr2x_generate_thumbnails', $mediaId );
+
+		return $history;
+	}
+
+
+	function regenerate_thumbnails( $mediaId ) {
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		do_action( 'wr2x_before_generate_thumbnails', $mediaId );
+		
+		$file = get_attached_file( $mediaId );
+		$meta = wp_generate_attachment_metadata( $mediaId, $file );
+
+		// Delete the history for the AI generated sizes
+		$history = $this->get_option( 'ai_history', [] );
+		if ( isset( $history[ $mediaId ] ) ) {
+			unset( $history[ $mediaId ] );
+			$this->update_option( 'ai_history', $history );
+		}
+
+		//error_log( "meta: " . print_r( $meta, true ) );	
+
+		wp_update_attachment_metadata( $mediaId, $meta );
+		do_action( 'wr2x_generate_thumbnails', $mediaId );
+	}
+
+	function regenerate_thumbnails_optimized( $media_id ) {
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		do_action( 'wr2x_before_generate_thumbnails', $media_id );
+		
+		$file = get_attached_file( $media_id );
+		$meta = wp_get_attachment_metadata( $media_id );
+
+		if ( ! is_array( $meta ) || ! isset( $meta['sizes'] ) ) {
+			$meta = array( 'sizes' => array() );
+		}
+
+		// Get the current registered image sizes
+		$needed_sizes = wp_get_registered_image_subsizes();
+		$option_sizes = $this->get_option( 'sizes' );
+
+		foreach ( $option_sizes as $size ) {
+			if ( array_key_exists( $size['name'], $needed_sizes ) ) {
+				if ( ! $size['enabled'] ) {
+					unset( $needed_sizes[ $size['name'] ] );
+				}
+			}
+		}
+		
+		foreach ( $needed_sizes as $size => $size_data ) {
+			$image_path = path_join( dirname( $file ), $meta['sizes'][ $size ]['file'] ?? '' );
+			if ( isset( $meta['sizes'][ $size ] ) && file_exists( $image_path ) && filesize( $image_path ) > 0 ) {
+				// Thumbnail exists, no need to regenerate it.
+				continue;
+			}
+
+			// Generate the thumbnail size.
+			$resized = image_make_intermediate_size( $file, $size_data['width'], $size_data['height'], $size_data['crop'] ?? true );
+
+			if ( $resized ) {
+				$meta['sizes'][ $size ] = $resized;
+			}
+		}
+
+		wp_update_attachment_metadata( $media_id, $meta );
+		do_action( 'wr2x_generate_thumbnails', $media_id );
+	}
+
+
+	// #region AI Features
+
+	function use_ai_upscale( $mediaId, $service, $size = [ 'width' => "200%", 'height' => "200%" ]) {
+		// TODO: Create a class for each AI Services
+		// * For now, let's just create a function for each service
+
+		switch ( $service ) {
+			case 'none':
+				return [ 'status' => false, 'message' => 'No AI Service selected.' ];
+			case 'ai_engine':
+				//return $this->ai_engine_upscale( $mediaId );
+				return [ 'status' => false, 'message' => 'AI Engine is not available yet.' ];
+			case 'claid':
+				return $this->claid_upscale( $mediaId, $size );
+			default:
+				return false;
+		}
+	}
+
+	function claid_upscale( $mediaId, $size ) {
+
+		$response = array(
+			'status'  => false,
+			'message' => 'Upscale failed.',
+			'data'    => null
+		);
+	
+		$claid_key    = $this->get_option( 'claid_api_key', '' );
+		$claid_host   = $this->get_option( 'claid_host', '' );
+		$claid_upload = $this->get_option( 'claid_remote_upload', 'upload' );    
+	
+		if ( empty( $claid_key ) || empty( $claid_host ) ) {
+			$response['message'] = 'CLAID API Key or Host is empty.';
+			return $response;
+		}
+	
+		$host = rtrim( $claid_host, '/' );
+		$url  = "https://$host/v1-beta1/image/edit";
+	
+		// Prepare operations and output
+		$operations = array(
+			"restorations" => array(
+				"upscale"=> $this->get_option( 'claid_restoration_type', 'photo' )
+			),
+			"resizing" => array(
+				"width"  => $size['width'],
+				"height" => $size['height'],
+				"fit"    => $this->get_option( 'claid_upscale_type', 'bounds' )
+			)
+		);
+	
+		$output = array(
+			"format" => array(
+				"type"    => "jpeg",
+				"quality" => 90
+			)
+		);
+	
+		if ( $claid_upload === 'upload' ) {
+			// Append '/upload' to the URL for local uploads
+			$url .= "/upload";
+	
+			// Get the file path
+			$file_path = get_attached_file( $mediaId );
+			if ( empty( $file_path ) ) {
+				$response['message'] = 'File path is empty.';
+				return $response;
+			}
+	
+			// Prepare multipart/form-data body
+			$boundary = wp_generate_password( 24 );
+			$headers = array(
+				'Authorization' => 'Bearer ' . $claid_key,
+				'Content-Type'  => 'multipart/form-data; boundary=' . $boundary,
+			);
+	
+			$body = '';
+			// Add file part
+			$body .= '--' . $boundary . "\r\n";
+			$body .= 'Content-Disposition: form-data; name="file"; filename="' . basename( $file_path ) . '"' . "\r\n";
+			$body .= 'Content-Type: ' . mime_content_type( $file_path ) . "\r\n\r\n";
+			$body .= file_get_contents( $file_path ) . "\r\n";
+	
+			// Add data part
+			$body .= '--' . $boundary . "\r\n";
+			$body .= 'Content-Disposition: form-data; name="data"' . "\r\n";
+			$body .= 'Content-Type: application/json' . "\r\n\r\n";
+			$body .= wp_json_encode( array(
+				"operations" => $operations,
+				"output"     => $output
+			) ) . "\r\n";
+	
+			// Finalize body
+			$body .= '--' . $boundary . '--';
+	
+			$args = array(
+				'headers' => $headers,
+				'body'    => $body,
+				'method'  => 'POST',
+				'timeout' => 30,
+			);
+		}
+		
+		if( $claid_upload === 'share' ) {
+			// Use media URL for shared uploads
+			$mediaUrl = wp_get_attachment_url( $mediaId );
+			if ( empty( $mediaUrl ) ) {
+				$response['message'] = 'Media URL is empty.';
+				return $response;
+			}
+	
+			$data = array(
+				"input"      => $mediaUrl,
+				"operations" => $operations,
+				"output"     => $output
+			);
+	
+			$payload = wp_json_encode( $data );
+	
+			$args = array(
+				'headers' => array(
+					'Authorization' => 'Bearer ' . $claid_key,
+					'Content-Type'  => 'application/json',
+				),
+				'body'    => $payload,
+				'method'  => 'POST',
+				'timeout' => 30,
+			);
+		}
+	
+		// Make the API request
+		$api_response = wp_remote_post( $url, $args );
+	
+		if ( is_wp_error( $api_response ) ) {
+			$response['message'] = 'Request Error: ' . $api_response->get_error_message();
+		} else {
+			$httpCode = wp_remote_retrieve_response_code( $api_response );
+			if ( $httpCode == 200 ) {
+				$result_body = wp_remote_retrieve_body( $api_response );
+				$resultData  = json_decode( $result_body, true );
+				if ( isset( $resultData['data']['output']['tmp_url'] ) ) {
+					$response['status']  = true;
+					$response['message'] = 'Upscale successful.';
+					$response['data']    = $resultData['data']['output']['tmp_url'];
+					$response['meta']    = $resultData['data'];
+				} else {
+					$response['message'] = 'Unexpected API response.';
+				}
+			} else {
+				$response['message'] = 'API Error: ' . wp_remote_retrieve_body( $api_response );
+			}
+		}
+	
+		return $response;
+	}
+
+
+
+	// #endregion
+
+
 
 	function is_wpml_installed() {
 		return function_exists( 'icl_object_id' ) && !class_exists( 'Polylang' );
@@ -1542,7 +1892,7 @@ class Meow_WR2X_Core {
 	}
 
 	function log( $data = null ) {
-		if ( !$this->is_debug() ) { return false; }
+		if ( !$this->get_option( 'logs' ) ) { return false; }
 		$log_file_path = $this->get_logs_path();
 		$fh = @fopen( $log_file_path, 'a' );
 		if ( !$fh ) { return false; }
@@ -1902,13 +2252,6 @@ class Meow_WR2X_Core {
 			wp_enqueue_script( 'wr2x-picturefill-js', trailingslashit( WR2X_URL ) . 'app/picturefill.min.js', array(), $cache_buster, false );
 		}
 
-		// Lazysizes
-		if ( $this->get_option( "picturefill_lazysizes" ) && class_exists( 'MeowPro_WR2X_Core' ) ) {
-			$physical_file = trailingslashit( WR2X_PATH ) . 'app/lazysizes.min.js';
-			$cache_buster = file_exists( $physical_file ) ? filemtime( $physical_file ) : WR2X_VERSION;
-			wp_enqueue_script( 'wr2x-picturefill-js', trailingslashit( WR2X_URL ) . 'app/lazysizes.min.js', array(), $cache_buster, false );
-		}
-
 		// Debug + HTML Rewrite = No JS!
 		if ( $this->is_debug() && $this->method == "HTML Rewrite" ) {
 			return;
@@ -1967,41 +2310,69 @@ class Meow_WR2X_Core {
 	function list_options() {
 		return array(
 			'method' => 'none',
-			'webp_method' => 'none',
 			'retina_sizes' => [],
 			'disabled_sizes' => [],
-			'webp_sizes' => [],
-			'webp_retina_sizes' => [],
-			'picturefill_lazysizes' => false,
 			'big_image_size_threshold' => false,
 			'hide_retina_dashboard' => false,
 			'hide_retina_column' => true,
 			'hide_optimize' => true,
 			'auto_generate' => false,
-			'webp_auto_generate' => false,
 			'ignore_sizes' => [],
 			'picturefill_keep_src' => false,
 			'picturefill_css_background' => false,
 			'disable_responsive' => false,
 			'full_size' => false,
-			'webp_full_size' => false,
 			'quality' => 75,
 			'over_http_check' => false,
 			'easyio_domain' => '',
 			'cdn_domain' => '',
 			'easyio_lossless' => '',
 			'debug' => false,
+			'logs' => false,
 			'picturefill_noscript' => false,
 			'image_replace' => false,
 			'sizes' => [],
 			'module_retina_enabled' => true,
 			'module_optimize_enabled' => true,
 			'module_ui_enabled' => true,
-			'module_webp_enabled' => true,
 			'gif_thumbnails_disabled' => false,
+			'hide_admin_messages' => false,
 			'logs_path' => null,
 			'custom_image_sizes' => [],
+			'legacy_build_thumbnails' => false,
+
+
+
+			//Modern Image Formats
+			'module_webp_enabled' => true,
+			'webp_full_size' => false,
 			'generate_avif' => false,
+			'webp_auto_generate' => false,
+			'webp_retina_sizes' => [],
+			'webp_sizes' => [],
+			'webp_method' => 'none',
+
+			// AI
+			'module_ai_enabled' => false,
+			'ai_service' => 'none',
+			'ai_history' => [],
+			'ai_upscale' => false,
+			'ai_retina_full_size' => false,
+
+			'claid_api_key' => '',
+			'claid_host' => 'api.claid.ai',
+			'claid_remote_upload' => 'upload', // upload or share
+			'claid_restoration_type' => 'photo',
+			'claid_upscale_type' => 'bounds',
+
+			'wp_lazy_loading' => [
+				'img' => wp_lazy_loading_enabled( 'img', 'wr2x' ),
+				'iframe' => wp_lazy_loading_enabled( 'iframe', 'wr2x' ),
+				'video' => wp_lazy_loading_enabled( 'video', 'wr2x' ),
+				'picture' => wp_lazy_loading_enabled( 'picture', 'wr2x' ),
+			],
+			'wp_auto_sizes' => function_exists( 'wp_img_tag_add_auto_sizes' ) && function_exists( 'wp_sizes_attribute_includes_valid_auto' ),
+			
 		);
 	}
 
@@ -2038,6 +2409,28 @@ class Meow_WR2X_Core {
 
 		$options['sizes'] = $this->get_image_sizes( ARRAY_A, $options );
 
+		// Update the wp_lazy_loading and wp_auto_sizes options
+		$wp_lazy_loading = [
+			'img' => wp_lazy_loading_enabled( 'img', 'wr2x' ),
+			'iframe' => wp_lazy_loading_enabled( 'iframe', 'wr2x' ),
+			'video' => wp_lazy_loading_enabled( 'video', 'wr2x' ),
+			'picture' => wp_lazy_loading_enabled( 'picture', 'wr2x' ),
+		];
+
+		$wp_auto_sizes = function_exists( 'wp_img_tag_add_auto_sizes' ) && function_exists( 'wp_sizes_attribute_includes_valid_auto' );
+
+		if ( $options['wp_lazy_loading'] !== $wp_lazy_loading ) {
+			$options['wp_lazy_loading'] = $wp_lazy_loading;
+			$needs_update = true;
+		}
+
+		if ( $options['wp_auto_sizes'] !== $wp_auto_sizes ) {
+			$options['wp_auto_sizes'] = $wp_auto_sizes;
+			$needs_update = true;
+		}
+
+
+		// Update the options if needed
 		if( $needs_update ) { $this->update_options( $options ); }
 
 		return $options;
@@ -2078,6 +2471,12 @@ class Meow_WR2X_Core {
 		return $options;
 	}
 
+	function update_option( $option, $value ) {
+		$options = $this->get_all_options();
+		$options[$option] = $value;
+		return $this->update_options( $options );
+	}
+
 	// Validate and keep the options clean and logical.
 	function sanitize_options() {
 		$options = $this->get_all_options();
@@ -2088,9 +2487,23 @@ class Meow_WR2X_Core {
 		$this->disabled_sizes = $options['disabled_sizes'] ?? array();
 		$this->webp_sizes = $options['webp_sizes'] ?? array();
 		$this->webp_retina_sizes = $options['webp_retina_sizes'] ?? array();
-		$this->lazy = $options["picturefill_lazysizes"] && class_exists( 'MeowPro_WR2X_Core' );
 
 		$options['sizes'] = $this->get_image_sizes( ARRAY_A, $options );
+
+		if( !$options['module_webp_enabled'] ) {
+
+			$options['webp_full_size'] = false;
+			$options['generate_avif'] = false;
+			$options['webp_auto_generate'] = false;
+			$options['webp_method'] = 'none';
+
+			// Let's keep the sizes so we can restore them if the module is enabled again
+			//$options['webp_retina_sizes'] = [];
+			//$options['webp_sizes'] = [];
+
+		}
+
+
 		update_option( $this->option_name, $options, false );
 
 		return $options;

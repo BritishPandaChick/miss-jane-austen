@@ -656,6 +656,10 @@ msgstr "﻿Fullbredd"
 msgid "Boxed"
 msgstr "﻿Boxad"
 
+#: inc/customizer/choices.php:165
+msgid "Wide"
+msgstr "﻿Bred"
+
 #: inc/customizer/choices.php:169 inc/customizer/choices.php:197
 msgid "Traditional"
 msgstr "﻿Traditionellt"

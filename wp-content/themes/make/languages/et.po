@@ -551,6 +551,10 @@ msgstr "TÃ¤is-laius"
 msgid "Boxed"
 msgstr "Kastis"
 
+#: inc/customizer/helpers.php:76
+msgid "Wide"
+msgstr "Lai"
+
 #: inc/customizer/helpers.php:84
 msgid "Post header"
 msgstr "Artikli pÃ¤is"

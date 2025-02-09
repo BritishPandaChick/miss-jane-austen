@@ -361,6 +361,10 @@ msgstr ""
 msgid "Boxed"
 msgstr ""
 
+#: inc/choices/definitions/choices.php:80
+msgid "Wide"
+msgstr ""
+
 #: inc/choices/definitions/choices.php:82
 #: inc/customizer/definitions/typography.php:19
 #: inc/sections/banner/definition.php:263

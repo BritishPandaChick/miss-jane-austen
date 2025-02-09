@@ -677,6 +677,10 @@ msgstr "Volledige breedte"
 msgid "Boxed"
 msgstr "Gekaderd"
 
+#: inc/customizer/choices.php:165
+msgid "Wide"
+msgstr "Breed"
+
 #: inc/customizer/choices.php:169 inc/customizer/choices.php:197
 msgid "Traditional"
 msgstr "Traditioneel"

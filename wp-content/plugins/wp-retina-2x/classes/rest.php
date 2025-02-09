@@ -271,85 +271,148 @@ class Meow_WR2X_Rest
 		return new WP_REST_Response( [ 'success' => true, 'data' => $this->core->get_all_options() ], 200 );
 	}
 
-	function rest_check_optimizers() {
-		if ( !function_exists('exec') ) {
-			return new WP_REST_Response([ 'success' => true, 'data' => false ], 200);
+	function find_whereis_command() {
+		$test_output = null;
+		$test_result_code = null;
+		exec( 'whereis whereis', $test_output, $test_result_code );
+	
+		if ( $test_result_code !== 127 ) {
+			return 'whereis';
 		}
 	
-		$optimizers = [
+		$which_output = null;
+		$which_result_code = null;
+		exec( 'which whereis', $which_output, $which_result_code );
+	
+		if ( $which_result_code !== 127 && ! empty( $which_output ) ) {
+			return $which_output[0];
+		}
+	
+		// If which is not available or didn't find whereis, let's try some default paths
+		$default_paths = array(
+			'/bin/whereis',
+			'/sbin/whereis',
+			'/usr/bin/whereis',
+			'/usr/sbin/whereis',
+			'/bin/whereis',
+			'/usr/local/bin/whereis',
+		);
+	
+		foreach ( $default_paths as $path ) {
+			if ( is_executable( $path ) ) {
+				return $path;
+			}
+		}
+	
+		return false;
+	}
+	
+	function rest_check_optimizers() {
+		if ( ! function_exists( 'exec' ) ) {
+			return new WP_REST_Response( array( 
+				'success' => true,
+				'message' => 'Cannot check optimizers. The "exec" function is not available on your server.',
+			), 200 );
+		}
+	
+		$optimizers = array(
 			'jpegoptim',
 			'jpegtran',
 			'optipng',
 			'pngquant',
 			'svgo',
 			'gifsicle',
-		];
-		$data = [];
-		$message = '';
+		);
+	
+		$data = array();
+		$whereis_command = $this->find_whereis_command();
+	
+		if ( ! $whereis_command ) {
+			return new WP_REST_Response(
+				array(
+					'success' => false,
+					'message' => 'Cannot check optimizers. The "whereis" command is not available on your server.',
+				),
+				200
+			);
+		}
 	
 		foreach ( $optimizers as $optimizer ) {
-			$output = null;
+			$output      = null;
 			$result_code = null;
-			exec('whereis ' . $optimizer, $output, $result_code);
 	
-			if ( isset($output[0]) ) {
-				$exploded = explode(':', $output[0]);
+			// Use the determined 'whereis' command
+			$command = escapeshellcmd( $whereis_command ) . ' ' . escapeshellarg( $optimizer );
+			exec( $command, $output, $result_code );
+	
+			if ( isset( $output[0] ) ) {
+				$exploded = explode( ':', $output[0] );
 			} else {
-				$exploded = [];
+				$exploded = array();
 			}
 	
-			if (count($exploded) >= 2) {
-				list($name, $value) = $exploded;
-				$data[$name]['result'] = (bool)$value;
+			if ( count( $exploded ) >= 2 ) {
+				list( $name, $value ) = $exploded;
+				$data[ $optimizer ]['result'] = ! empty( trim( $value ) );
 			} else {
-				$data[$optimizer]['result'] = false;
+				$data[ $optimizer ]['result'] = false;
 			}
 	
-			if ( $result_code === 127 ) { // 127 means command not found.
-				return new WP_REST_Response([
-					'success' => false,
-					'message' => 'Can not check some optimizers. We need "whereis" command. Please check your server configuration.'
-				], 200);
+			if ( $result_code === 127 ) { // Should not happen since we checked for 'whereis' earlier, but let's be sure
+				return new WP_REST_Response(
+					array(
+						'success' => false,
+						'message' => 'Cannot check some optimizers. The "whereis" command is not available on your server.',
+					),
+					200
+				);
 			}
 		}
 	
 		// Check for WebP and AVIF support
-		$formats = ['webp', 'avif'];
+		$formats = array( 'webp', 'avif' );
 	
-		foreach ($formats as $format) {
+		foreach ( $formats as $format ) {
 			$enabled_format = false;
 	
-			if ( extension_loaded('imagick') && class_exists('Imagick') ) {
+			if ( extension_loaded( 'imagick' ) && class_exists( 'Imagick' ) ) {
 				$image = new Imagick();
-				if ( in_array(strtoupper($format), $image->queryFormats()) ) {
+				if ( in_array( strtoupper( $format ), $image->queryFormats() ) ) {
 					$enabled_format = true;
-					$data["Imagick($format)"]['result'] = true;
+					$data[ "Imagick($format)" ]['result'] = true;
 				}
 			}
 	
 			if (
-				extension_loaded('gd') &&
-				function_exists('imagecreatefromjpeg') &&
-				function_exists('imagecreatefrompng') &&
-				function_exists('imagecreatefromgif') &&
-				function_exists('imageistruecolor') &&
-				function_exists('imagepalettetotruecolor') &&
-				function_exists("image$format")  // Dynamic function check for GD format support
+				extension_loaded( 'gd' ) &&
+				function_exists( 'imagecreatefromjpeg' ) &&
+				function_exists( 'imagecreatefrompng' ) &&
+				function_exists( 'imagecreatefromgif' ) &&
+				function_exists( 'imageistruecolor' ) &&
+				function_exists( 'imagepalettetotruecolor' ) &&
+				function_exists( "image$format" ) // Dynamic function check for GD format support
 			) {
 				$enabled_format = true;
-				$data["GD($format)"]['result'] = true;
+				$data[ "GD($format)" ]['result'] = true;
 			}
 	
-			if (!$enabled_format) {
-				$library = (extension_loaded('imagick') && extension_loaded('gd')) ? 'Imagick or GD' : (extension_loaded('imagick') ? 'Imagick' : 'GD');
-				$data[$format] = [
-					'result' => false,
+			if ( ! $enabled_format ) {
+				$libraries = array();
+				if ( extension_loaded( 'imagick' ) ) {
+					$libraries[] = 'Imagick';
+				}
+				if ( extension_loaded( 'gd' ) ) {
+					$libraries[] = 'GD';
+				}
+				$library = ! empty( $libraries ) ? implode( ' or ', $libraries ) : 'Imagick or GD';
+				$data[ $format ] = array(
+					'result'  => false,
 					'message' => "Needs to enable $format in $library on your server.",
-				];
+				);
 			}
 		}
 	
-		return new WP_REST_Response([ 'success' => true, 'data' => $data ], 200);
+		return new WP_REST_Response( array( 'success' => true, 'data' => $data ), 200 );
 	}
 
 	function count_issues($search) {
@@ -555,58 +618,7 @@ class Meow_WR2X_Rest
 		return new WP_REST_Response( [ 'success' => true, 'data' => $info ], 200 );
 	}
 
-	// Regenerate the Thumbnails
-	function regenerate_thumbnails( $mediaId ) {
-		require_once ABSPATH . 'wp-admin/includes/image.php';
-		do_action( 'wr2x_before_generate_thumbnails', $mediaId );
-		$file = get_attached_file( $mediaId );
-		$meta = wp_generate_attachment_metadata( $mediaId, $file );
-
-		wp_update_attachment_metadata( $mediaId, $meta );
-		do_action( 'wr2x_generate_thumbnails', $mediaId );
-	}
-
-	function regenerate_thumbnails_optimized( $media_id ) {
-		require_once ABSPATH . 'wp-admin/includes/image.php';
-		do_action( 'wr2x_before_generate_thumbnails', $media_id );
-		
-		$file = get_attached_file( $media_id );
-		$meta = wp_get_attachment_metadata( $media_id );
-
-		if ( ! is_array( $meta ) || ! isset( $meta['sizes'] ) ) {
-			$meta = array( 'sizes' => array() );
-		}
-
-		// Get the current registered image sizes
-		$needed_sizes = wp_get_registered_image_subsizes();
-		$option_sizes = $this->core->get_option( 'sizes' );
-
-		foreach ( $option_sizes as $size ) {
-			if ( array_key_exists( $size['name'], $needed_sizes ) ) {
-				if ( ! $size['enabled'] ) {
-					unset( $needed_sizes[ $size['name'] ] );
-				}
-			}
-		}
-		
-		foreach ( $needed_sizes as $size => $size_data ) {
-			$image_path = path_join( dirname( $file ), $meta['sizes'][ $size ]['file'] ?? '' );
-			if ( isset( $meta['sizes'][ $size ] ) && file_exists( $image_path ) && filesize( $image_path ) > 0 ) {
-				// Thumbnail exists, no need to regenerate it.
-				continue;
-			}
-
-			// Generate the thumbnail size.
-			$resized = image_make_intermediate_size( $file, $size_data['width'], $size_data['height'], $size_data['crop'] ?? true );
-
-			if ( $resized ) {
-				$meta['sizes'][ $size ] = $resized;
-			}
-		}
-
-		wp_update_attachment_metadata( $media_id, $meta );
-		do_action( 'wr2x_generate_thumbnails', $media_id );
-	}
+	
 
 	function rest_build_retina( $request ) {
 		// Check errors
@@ -719,6 +731,13 @@ class Meow_WR2X_Rest
 		$params = $request->get_json_params();
 		$mediaId = isset( $params['mediaId'] ) ? (int)$params['mediaId'] : null;
 		$optimized = isset( $params['optimized'] ) ? (bool)$params['optimized'] : false;
+		$ai_generate = isset( $params['ai_generate'] ) ? (bool)$params['ai_generate'] : false;
+
+
+		$data =[ 
+			'success' => true,
+			'data' => $info,
+		];
 
 		// Check errors
 		if ( empty( $mediaId ) ) {
@@ -727,13 +746,25 @@ class Meow_WR2X_Rest
 
 		// Regenerate
 		if ( $optimized ) {
-			$this->regenerate_thumbnails_optimized( $mediaId );
+			$this->core->regenerate_thumbnails_optimized( $mediaId );
 		}
-		else {
-			$this->regenerate_thumbnails( $mediaId );
+
+		if( !$optimized && !$ai_generate ) {
+			$this->core->regenerate_thumbnails( $mediaId );
 		}
+
+		if ( !$optimized && $ai_generate ) {
+			$res = $this->core->regenerate_thumbnails_ai( $mediaId );
+			
+			if ( is_wp_error( $res ) ) {
+				return new WP_REST_Response( [ 'success' => false, 'message' => $res->get_error_message() ], 200 );
+			}
+
+			$data['history'] = $res;
+		}
+
 		$info = $this->core->get_media_status_one( $mediaId );
-		return new WP_REST_Response( [ 'success' => true, 'data' => $info  ], 200 );
+		return new WP_REST_Response( $data, 200 );
 	}
 
 	function rest_optimize( $request ) {

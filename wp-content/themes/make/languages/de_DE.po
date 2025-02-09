@@ -561,6 +561,10 @@ msgstr "Volle Breite"
 msgid "Boxed"
 msgstr "Umrahmt (Boxed)"
 
+#: inc/customizer/helpers.php:76
+msgid "Wide"
+msgstr "Breit"
+
 #: inc/customizer/helpers.php:84
 msgid "Post header"
 msgstr "Oben"

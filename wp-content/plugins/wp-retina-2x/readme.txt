@@ -1,58 +1,80 @@
-=== Perfect Images (Manage Image Sizes, Thumbnails, Replace, Retina) ===
+=== Perfect Images ===
 Contributors: TigrouMeow
-Tags: retina, images, replace, thumbnail, regenerate
+Tags: retina, upscale, replace, thumbnail, regenerate
 Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 6.6.6
+Stable tag: 7.0.0
 
-Optimize your images effortlessly. Replace, regenerate, resize, improve, transform, and achieve perfect images for your site.
+Optimize your images effortlessly. Replace, regenerate, resize, upscale, improve, transform, and achieve perfect images for your site.
 
 == Description ==
 
-Take control of your images with Perfect Images! This powerful plugin helps you optimize and manage your images with ease. Easily replace or regenerate existing images in bulk, set custom sizes, improve performance, and create retina versions for high-quality displays. Plus, with features like CDN support and the ability to disable the image threshold, you can fine-tune your image management to suit your specific needs. Perfect Images is fast, does not create any new tables in your database, and is fully compatible with other plugins.
+Take complete control of your images with Perfect Images! This powerful plugin helps you optimize and manage your images with ease. Seamlessly replace or regenerate existing images in bulk, set custom sizes, improve performance, and create retina-ready versions for high-quality displays. Whether you're working with core JPEGs, WebPs, or AVIFs, Perfect Images has you covered. Upscaling is also supported to generate thumbnails that weren't possible before. With additional features like CDN support and the ability to disable image thresholding, you can fine-tune your image management to suit your needs. Perfect Images is fast, efficient, and fully compatible with other plugins without creating new database tables.
 
-Here's a closer look at the main features of Perfect Images:
+**Key Features:**
 
-* Manage Image Sizes (Custom Sizes and Disable Sizes)
-* Replace Image & Media Entries
-* Regenerate Thumbnails
-* Retina Images / High DPI
-* CDN (with Image Optimization by EWWW)
-* Disable Image Threshold
+* **Manage Image Sizes**: Customize, disable, and track image sizes effortlessly.
+* **Replace Image**: Swap out images directly from the Media Library or the plugin dashboard.
+* **Regenerate Thumbnails**: Update thumbnails in bulk with a handy progress tracker.
+* **Upscaling**: Enhance image resolution and generate better thumbnails, even for previously unsupported sizes.
+* **Retina Images / High DPI**: Automatically create and serve stunning retina images.
+* **WebP & AVIF Support**: Generate and serve modern image formats for better performance and quality.
+* **CDN Integration**: Optimize and deliver images via EWWW Image Optimization.
+* **Disable Image Threshold**: Disable WordPress’ automatic image scaling feature.
 
-Originally designed to handle retina images, Perfect Images has evolved to become a must-have tool for any WordPress site.
+**Pro Features:**
+
+* Retina support for full-size images.
+* WebP and AVIF support for full-size images.
+* Priority support from the Meow Apps team.
+
+Originally designed to handle retina images, Perfect Images has evolved into an indispensable tool for any WordPress site.
+
+== Features in Detail ==
 
 === Manage Image Sizes ===
-With this feature, you can easily disable any unnecessary sizes and keep track of the sizes created for each of your media entries. This allows you to streamline your image management and get rid of any unnecessary sizes that may be taking up space on your site. For example, you can disable the medium_large, 1536x1536, and 2048x2048 sizes that WordPress automatically creates, which are often unnecessary.
+
+Simplify your image management by disabling unnecessary sizes and tracking the sizes created for each media entry. For instance, you can disable WordPress-generated sizes like `medium_large`, `1536x1536`, and `2048x2048` to save space and resources.
 
 === Replace Image & Media ===
-This convenient tool allows you to quickly swap out an image for a new one, all from within the plugin's dedicated dashboard, or directly from the Media Library or Edit Attachment pages. Say goodbye to the hassle of manually replacing images and streamline your media management.
+
+Replace images quickly and effortlessly. Whether through the dedicated plugin dashboard or directly from the Media Library and Edit Attachment pages, you can streamline your workflow and avoid manual replacements.
 
 === Regenerate Thumbnails ===
-This feature allows you to update your thumbnails en masse, with a convenient progress bar to keep you informed of the process. Plus, Perfect Images handles all the details, including regenerating your retina images and updating your media metadata as needed.
 
-=== Retina Images / HighDPI ===
-Make your website look stunning on high-DPI devices with Perfect Images. This plugin automatically generates and serves beautiful, crisp retina images to your visitors, ensuring that your site looks great on every device. Plus, with the option to manually generate retina images and the unique feature of creating retina images for full-size images, you'll have everything you need to make your website stand out. Visit the official website for more information and tutorials on how to get the most out of this feature.
+Update your thumbnails in bulk with ease. A built-in progress bar keeps you informed, while the plugin handles all the details, including regenerating retina images and updating media metadata. Upscaling ensures that thumbnails can even be created for sizes that were previously unsupported.
+
+=== Retina Images / High DPI ===
+
+Ensure your site looks stunning on all devices. Perfect Images generates and serves retina-ready images automatically. Additionally, you can manually create retina images and even generate retina versions for full-size images. Visit our official website for more details and tutorials.
 
 === Disable Image Threshold ===
-This plugin gives you the ability to disable WordPress' automatic image scaling feature, which sometimes results in files with "-scaled" at the end of their filenames.
 
-=== Pro Version ===
-The Pro version adds support for Retina for full-size, support for lazy-loading for your responsive images and various options. And it supports my work :)
+Disable WordPress’ automatic scaling of large images, preventing files with "-scaled" in their filenames from being created.
 
-= Quickstart =
+== Installation ==
 
-1. Set your option (for instance, you probably don't need retina images for every sizes set-up in your WP).
-2. Generate the retina images (required only the first time, then images are generated automatically).
-3. Check if it works! - if it doesn't, read the FAQ, the tutorial, and check the forums.
+1. Upload the plugin folder to `/wp-content/plugins/` directory or install it directly through the WordPress plugin repository.
+2. Activate the plugin through the 'Plugins' menu in WordPress.
+3. Navigate to the plugin settings to configure your preferences.
 
 == Changelog ==
 
+= 7.0.0 (2024/12/22) =
+* Add: Upscaling feature with Claid.ai for high-quality image enhancement.
+* Add: AI-generated thumbnails with history tracking for generated sizes.
+* Add: New settings for restoration types, upscale methods, and locale/remote uploads.
+* Update: Dashboard UI redesigned for a more intuitive and efficient experience.
+* Update: Tooltips, clickable thumbnails, and streamlined bulk actions for improved usability.
+* Fix: Retina sizes now handled correctly when the module is disabled.
+* Fix: WebP sizes preserved when the module is disabled, with restoration options.
+* Fix: Various bugs and optimizations for enhanced performance and data integrity.
+* Info: Biggest update in a long while! 🎉 We hope you'll love it! Don't hesitate to [write a review](https://wordpress.org/support/plugin/wp-retina-2x/reviews/#new-post) for the plugin, it really helps. Thank you! 💕
+
 = 6.6.6 (2024/11/04) =
 * Fix: Meta Viewer tooltips.
-* Info: Wah, what a version number! 😅 Well, if you noticed that too, and never wrote a review for this plugin, maybe this is the moment! Please [write a review](https://wordpress.org/support/plugin/wp-retina-2x/reviews/#new-post) for the plugin if you are happy with it, with a little 666 mention! 👹 We are trying our best to bring many new features to you. Thank you! 💕
 
 = 6.6.5 (2024/10/17) =
 * Fix: Handle more errors coming from server.
@@ -88,7 +110,7 @@ The Pro version adds support for Retina for full-size, support for lazy-loading 
 = 6.5.6 (2024/05/13) =
 * Add: Import / Export Settings functionality.
 * Update: Enhanced button readability in actions by reducing text.
-* Update: User Interface improvements for Full Size image handling.
+* Update: User Interface improvements for Full-Size image handling.
 * Add: Automatic building of Full-Size Webp images.
 * Optimization: Optimized image handling by fetching only the mime type.
 

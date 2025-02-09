@@ -49,7 +49,7 @@ class Meow_WR2X_Admin extends MeowCommon_Admin {
 			'rest_nonce' => wp_create_nonce( 'wp_rest' ),
 			//'image_sizes' => $this->core->get_image_sizes( ARRAY_A ),
 
-			'options' => $this->core->get_all_options(),
+			'options' => $this->core->sanitize_options(), // Ensure all options are sanitized on load
 			'image_size_names' => get_intermediate_image_sizes(),
 		] ) );
 
@@ -57,13 +57,17 @@ class Meow_WR2X_Admin extends MeowCommon_Admin {
 	}
 
 	function admin_notices() {
+
+
 		if ( current_user_can( 'activate_plugins' ) ) {
 			if ( delete_transient( 'wr2x_flush_rules' ) ) {
 				global $wp_rewrite;
 				Meow_WR2X_Admin::generate_rewrite_rules( $wp_rewrite, true );
 			}
 		}
-		if ( class_exists( 'Jetpack' ) && Jetpack::is_module_active( 'photon' ) ) {
+
+		$hide_message = $this->core->get_option( 'hide_admin_messages', false );
+		if ( class_exists( 'Jetpack' ) && Jetpack::is_module_active( 'photon' ) && !$hide_message ) {
 			echo "<div class='error' style='margin-top: 20px;'><p>";
 			_e( "JetPack's <b>Photon</b> module breaks features built in WP Retina 2x (as Photos moves the files away). A common and better alternative to Photon is to use <a href='http://tracking.maxcdn.com/c/97349/3982/378'>MaxCDN</a> (very popular), CloudFlare or Fastly.", 'wp-retina-2x' );
 			echo "</p></div>";
