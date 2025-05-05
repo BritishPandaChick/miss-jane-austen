@@ -2503,6 +2503,12 @@ class Meow_WR2X_Core {
 
 		}
 
+		// If the AI features are disabled, reset the AI options
+		if( !$options['module_ai_enabled'] ) {
+			$options['ai_upscale'] = false;
+			$options['ai_retina_full_size'] = false;
+		}
+
 
 		update_option( $this->option_name, $options, false );
 

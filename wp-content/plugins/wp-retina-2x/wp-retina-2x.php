@@ -3,7 +3,7 @@
 Plugin Name: Perfect Images
 Plugin URI: https://meowapps.com
 Description: Optimize your images effortlessly. Replace, regenerate, resize, upscale, improve, transform, and achieve perfect images for your site.
-Version: 7.0.0
+Version: 7.0.2
 Author: Jordy Meow
 Author URI: https://meowapps.com
 Text Domain: wp-retina-2x
@@ -13,7 +13,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
 if ( !defined( 'WR2X_VERSION' ) ) {
-	define( 'WR2X_VERSION', '7.0.0' );
+	define( 'WR2X_VERSION', '7.0.2' );
 	define( 'WR2X_PREFIX', 'wr2x' );
 	define( 'WR2X_DOMAIN', ' wp-retina-2x' );
 	define( 'WR2X_ENTRY', __FILE__ );

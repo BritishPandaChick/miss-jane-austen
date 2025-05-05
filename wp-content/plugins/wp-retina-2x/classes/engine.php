@@ -316,7 +316,7 @@ class Meow_WR2X_Engine {
 				$originalfile = trailingslashit( $pathinfo['dirname'] ) . $original_basename;
 
 				if ( !file_exists( $originalfile ) ) {
-					$this->core->log( "[ERROR] Original file '{$originalfile}' cannot be found." );
+					$this->core->log( "❌ [ERROR] Original file '{$originalfile}' cannot be found." );
 					return $meta;
 				}
 
@@ -326,33 +326,91 @@ class Meow_WR2X_Engine {
                 $crop = isset( $_wp_additional_image_sizes[$name] ) ? $_wp_additional_image_sizes[$name]['crop'] : true;
                 $customCrop = apply_filters( 'wr2x_custom_crop', null, $id, $name );
 
-
 				if ( isset( $meta['sizes'][$name]['width'], $meta['sizes'][$name]['height'] ) ) {
-					$image = imagecreatefromstring( file_get_contents( $originalfile ) );
 
-					if ( $image === false ) {
-						$this->core->log( "[ERROR] Could not create image from file '{$originalfile}'. The file may not be a valid image or the format may not be supported." );
-						return $meta;
+					$target_format = str_replace( '.', '', $this->core->webp_avif_extension() );
+					$is_avif = $target_format === 'avif';
+					
+					// Check GD's capabilities
+					$gd_can_convert = false;
+					if ( extension_loaded( 'gd' ) ) {
+						if ( $is_avif && function_exists( 'imageavif' ) ) {
+							$gd_can_convert = true;
+						} else if ( !$is_avif && function_exists( 'imagewebp' ) ) {
+							$gd_can_convert = true;
+						}
 					}
 					
-					if ( imagecolorstotal( $image ) > 0 ) {
-						$this->core->log( "⚠️ Converting palette image to true color for WebP conversion." );
-						// The image is a palette image, convert it to a true color image
-						$newImage = imagecreatetruecolor( imagesx( $image ), imagesy( $image ) );
-						imagecopy( $newImage, $image, 0, 0, 0, 0, imagesx( $image ), imagesy( $image  ));
-						imagedestroy( $image );
-						imagepng( $newImage, $originalfile );
-						imagedestroy( $newImage );
+					// Check Imagick's capabilities
+					$imagick_can_convert = false;
+					if ( extension_loaded( 'imagick' ) ) {
+						try {
+							$formats = Imagick::queryFormats();
+							if ( in_array( strtoupper( $target_format ), $formats ) ) {
+								$imagick_can_convert = true;
+							}
+						} catch ( Exception $e ) {
+							$this->core->log( "⚠️ Error checking Imagick formats: " . $e->getMessage() );
+						}
 					}
-					$this->resize( $originalfile, $meta['sizes'][$name]['width'],
-								$meta['sizes'][$name]['height'], $crop, $webp_file, $customCrop );
+					
+					// Use appropriate conversion method
+					if ( $gd_can_convert ) {
+						try {
+							$image = imagecreatefromstring( file_get_contents( $originalfile ) );
+							if ( $image === false ) {
+								$this->core->log( "❌ [ERROR] Could not create image from file '{$originalfile}'. The file may not be a valid image or the format may not be supported." );
+								return $meta;
+							}
+							
+							if ( imagecolorstotal($image) > 0 ) {
+								$this->core->log( "⚠️ Converting palette image to true color for {$target_format} conversion." );
+								$newImage = imagecreatetruecolor( imagesx( $image ), imagesy( $image ) );
+								imagecopy( $newImage, $image, 0, 0, 0, 0, imagesx( $image ), imagesy( $image ) );
+								imagedestroy( $image );
+								imagepng( $newImage, $originalfile );
+								imagedestroy( $newImage );
+							}
+							
+							$this->resize( $originalfile, $meta['sizes'][$name]['width'], $meta['sizes'][$name]['height'], $crop, $webp_file, $customCrop );
+						} catch ( Exception $e ) {
+							$this->core->log( "❌ [ERROR] GD conversion failed for {$name}: " . $e->getMessage() );
+							$gd_can_convert = false;
+						}
+					}
+					
+					// If GD failed or can't convert, try Imagick
+					if ( !$gd_can_convert && $imagick_can_convert ) {
+						try {
+							$imagick = new Imagick();
+							$imagick->readImage( $originalfile );
+							
+							if ( $crop ) {
+								$imagick->cropThumbnailImage( $meta['sizes'][$name]['width'], $meta['sizes'][$name]['height'] );
+							} else {
+								$imagick->thumbnailImage( $meta['sizes'][$name]['width'], $meta['sizes'][$name]['height'], true );
+							}
+							
+							$imagick->setImageFormat( $target_format );
+							$imagick->writeImage( $webp_file );
+							$imagick->clear();
+							$imagick->destroy();
+						} catch ( Exception $e ) {
+							$this->core->log( "❌ [ERROR] Imagick conversion failed for {$name}: " . $e->getMessage() );
+						}
+					}
+					
+					// Neither method worked or is available
+					if ( !$gd_can_convert && !$imagick_can_convert ) {
+						$this->core->log( "❌ [ERROR] Cannot convert to {$target_format}. Neither GD nor Imagick support this format." );
+					}
 				} else {
-					$this->core->log( "[ERROR] Could not generate WebP for {$name} because the width and height are not set." );
+					$this->core->log( "❌ [ERROR] Could not generate WebP/AVIF for {$name} because the width and height are not set." );
 				}
 
 
 				if ( !file_exists( $webp_file ) ) {
-					$this->core->log( "[ERROR] WebP for {$name} could not be created.");
+					$this->core->log( "❌ [ERROR] WebP for {$name} could not be created.");
 					$issue = true;
 				}
 				else {
@@ -360,10 +418,10 @@ class Meow_WR2X_Engine {
 					$this->core->log( "WebP for {$name} created: '{$webp_file}'." );
 				}
 			} else {
-				if ( empty( $normal_file ) )
-					$this->core->log( "[ERROR] Base file for '{$name}' does not exist." );
-				else
-					$this->core->log( "[ERROR] Base file for '{$name}' cannot be found here: '{$normal_file}'." );
+				if ( empty( $normal_file ) ){
+					$this->core->log( "❌ [ERROR] Base file for '{$name}' does not exist." );}
+				else{
+					$this->core->log( "❌ [ERROR] Base file for '{$name}' cannot be found here: '{$normal_file}'." );}
 			}
 		}
 

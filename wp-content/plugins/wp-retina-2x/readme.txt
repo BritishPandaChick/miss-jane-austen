@@ -5,7 +5,7 @@ Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 7.0.0
+Stable tag: 7.0.2
 
 Optimize your images effortlessly. Replace, regenerate, resize, upscale, improve, transform, and achieve perfect images for your site.
 
@@ -62,6 +62,17 @@ Disable WordPress’ automatic scaling of large images, preventing files with "-
 
 == Changelog ==
 
+= 7.0.2 (2025/03/12) =
+* Update: Added a check for WebP and AVIF support before using GD and Imagick.
+* Fix: Corrected a typo for better accuracy.
+* Add: Implemented an Imagick handler for WebP and AVIF conversion.
+
+= 7.0.1 (2025/02/17) =
+* Update: Adjusted rendering to align with React 18 deprecation changes.
+* Fix: Corrected display conditions for Retina Full Size uploads.
+* Fix: Ensured AI options reset properly when AI features are disabled.
+* Info: Don't hesitate to [write a review](https://wordpress.org/support/plugin/wp-retina-2x/reviews/#new-post) for the plugin, it really helps. Thank you! 💕
+
 = 7.0.0 (2024/12/22) =
 * Add: Upscaling feature with Claid.ai for high-quality image enhancement.
 * Add: AI-generated thumbnails with history tracking for generated sizes.
@@ -71,7 +82,6 @@ Disable WordPress’ automatic scaling of large images, preventing files with "-
 * Fix: Retina sizes now handled correctly when the module is disabled.
 * Fix: WebP sizes preserved when the module is disabled, with restoration options.
 * Fix: Various bugs and optimizations for enhanced performance and data integrity.
-* Info: Biggest update in a long while! 🎉 We hope you'll love it! Don't hesitate to [write a review](https://wordpress.org/support/plugin/wp-retina-2x/reviews/#new-post) for the plugin, it really helps. Thank you! 💕
 
 = 6.6.6 (2024/11/04) =
 * Fix: Meta Viewer tooltips.
