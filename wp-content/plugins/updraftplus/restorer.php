@@ -1493,15 +1493,20 @@ class Updraft_Restorer {
 				$updraftplus->log_e('wp-config.php from backup: will restore as wp-config-pre-ud-restore-backup.php', 'updraftplus');
 				if (!$wpfs->move($working_dir . "/$file", $working_dir . "/wp-config-pre-ud-restore-backup.php", true)) {
 					$this->restore_log_permission_failure_message($working_dir, 'Move '.$working_dir . "/$file -> ".$working_dir . "/wp-config-pre-ud-restore-backup.php", 'Destination');
+					// rename failed - take no further action with this file; we should not restore unless rename successful
+					$ret['result'] = true;
+					return $ret;
+				} else {
+					$wpcore_config_moved = true;
+					$ret['filename'] = 'wp-config-pre-ud-restore-backup.php';
 				}
-				$wpcore_config_moved = true;
-				$ret['filename'] = 'wp-config-pre-ud-restore-backup.php';
 			} else {
 				$updraftplus->log_e("wp-config.php from backup: restoring (as per user's request)", 'updraftplus');
 			}
 		} elseif ('wpcore' == $type && 'wp-config-pre-ud-restore-backup.php' == $file && $wpcore_config_moved) {
 			// The file is already gone; nothing to do
 			$ret['result'] = true;
+			return $ret;
 		}
 		
 		if (('object-cache.php' == $file || 'advanced-cache.php' == $file) && 'others' == $type) {
@@ -1509,14 +1514,20 @@ class Updraft_Restorer {
 				$nfile = preg_replace('/\.php$/', '-backup.php', $file);
 				if (!$wpfs->move($working_dir . "/$file", $working_dir . "/" .$nfile, true)) {
 					$this->restore_log_permission_failure_message($working_dir, 'Move '. $working_dir . '/' . $file .' -> '.$working_dir . '/' . $nfile, 'Destination');
+					// rename failed - take no further action with this file, as `updraftplus_restorecachefiles` indicated we should not restore the file without renaming it
+					$ret['result'] = true;
+					return $ret;
+				} else {
+					// the file was moved successfully, return the new filename so restore process can move it into place
+					$ret['filename'] = $nfile;
 				}
-				$file = $nfile;
 			}
 		} elseif (('object-cache-backup.php' == $file || 'advanced-cache-backup.php' == $file) && 'others' == $type) {
 			if (!$wpfs->delete($working_dir."/".$file)) {
 				$this->restore_log_permission_failure_message($working_dir, 'Delete '.$working_dir."/".$file);
 			}
 			$ret['result'] = true;
+			return $ret;
 		}
 		
 		$ret['result'] = false;
@@ -2572,15 +2583,46 @@ class Updraft_Restorer {
 			}
 		}
 		$charset_change_message = '';
-		if (preg_match('/ CHARSET=([^\s;]+)/i', $create_table_statement, $charset_match)) {
-			$charset = $charset_match[1];
-			if (!isset($supported_charsets[strtolower($charset)])) {
-				$charset_change_message = sprintf(__('Requested table character set (%s) is not present - changing to %s.', 'updraftplus'), esc_html($charset), esc_html($this->restore_options['updraft_restorer_charset']));
-				$create_table_statement = UpdraftPlus_Manipulation_Functions::str_lreplace("CHARSET=$charset", "CHARSET=".$this->restore_options['updraft_restorer_charset'], $create_table_statement);
-				// Allow default COLLLATE to database
-				if (preg_match('/ COLLATE=([^\s;]+)/i', $create_table_statement, $collate_match)) {
-					$collate = $collate_match[1];
-					$create_table_statement = UpdraftPlus_Manipulation_Functions::str_lreplace(" COLLATE=$collate", "", $create_table_statement);
+		if (preg_match_all('/\b(CHARSET|CHARACTER SET)(\s*=?\s*)([^\s;,]+)(?:\s+(COLLATE)(\s*=?\s*)([^\s;,]+))?/i', $create_table_statement, $matches, PREG_SET_ORDER)) {
+			$charset_replaced = array();
+
+			$table_definitions = end($matches);
+			// Extract the character set from the CREATE TABLE statement
+			$table_charset = !empty($table_definitions[3]) ? $table_definitions[3] : '';
+			// Extract the collation from the CREATE TABLE statement
+			$table_collation = !empty($table_definitions[6]) ? $table_definitions[6] : '';
+
+			foreach ($matches as $match) {
+				$full_match = $match[0];
+				$charset_keyword  = $match[1];
+				$charset_separator = $match[2];
+				$charset_original = $match[3];
+				$collate_keyword = isset($match[4]) ? $match[4] : 'COLLATE';
+				$collate_separator = isset($match[5]) ? $match[5] : ' ';
+
+				if (!isset($supported_charsets[strtolower($charset_original)]) && !in_array($full_match, $charset_replaced)) {
+					if (!empty($this->restore_options['updraft_restorer_charset'])) {
+						// Use the character set from the restoration settings
+						$change_charset_to = $charset_keyword.$charset_separator.$this->restore_options['updraft_restorer_charset'];
+
+						if (!empty($updraft_restorer_collate) && 'choose_a_default_for_each_table' != $updraft_restorer_collate) $change_charset_to .= ' '.$collate_keyword.$collate_separator.$updraft_restorer_collate;
+					} elseif (!empty($table_charset) && isset($supported_charsets[strtolower($table_charset)])) {
+						// Use the character set from the CREATE TABLE statement if no override is provided
+						$change_charset_to = $charset_keyword.$charset_separator.$table_charset;
+
+						// Use the collation from the CREATE TABLE statement if no override is provided
+						if (!empty($table_collation) && isset($supported_collations[strtolower($table_collation)])) $change_charset_to .= ' '.$collate_keyword.$collate_separator.$table_collation;
+					} else {
+						// Remove character set
+						$change_charset_to = '';
+					}
+
+					$charset_replaced[] = $full_match;
+
+					/* translators: 1: Requested character set, 2: Fallback character set. */
+					$charset_change_message = sprintf(__('Requested character set (%1$s) is not present - changing to %2$s.', 'updraftplus'), esc_html($charset_original), esc_html($this->restore_options['updraft_restorer_charset']));
+
+					$create_table_statement = str_replace($full_match, $change_charset_to, $create_table_statement);
 				}
 			}
 		}
@@ -3821,7 +3863,7 @@ class Updraft_Restorer {
 		}
 
 		foreach ($keys_to_save as $key) {
-			$this->configuration_bundle[$key] = UpdraftPlus_Options::get_updraft_option($key);
+			$this->configuration_bundle[$key] = UpdraftPlus_Options::get_updraft_option($key, '');
 		}
 	}
 

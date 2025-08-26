@@ -3118,6 +3118,7 @@ class UpdraftPlus {
 	 * @return Boolean|Void - as for UpdraftPlus::boot_backup()
 	 */
 	public function backup_all($options = array()) {
+		if (!is_array($options)) $options = array();
 		$skip_cloud = empty($options['nocloud']) ? false : true;
 		return $this->boot_backup(1, 1, false, false, $skip_cloud ? 'none' : false, $options);
 	}
@@ -3205,7 +3206,7 @@ class UpdraftPlus {
 	 */
 	public function get_backup_job_semaphore_lock($job_nonce, $resumption_no) {
 
-		$semaphore = $job_nonce;
+		$semaphore = 'udp_backupjob_'.$job_nonce;
 		
 		if (!class_exists('Updraft_Semaphore_3_0')) updraft_try_include_file('includes/class-updraft-semaphore.php', 'include_once');
 
@@ -3614,7 +3615,7 @@ class UpdraftPlus {
 	public function backup_finish($do_cleanup, $allow_email, $force_abort = false) {
 
 		if (!empty($this->semaphore)) $this->semaphore->unlock();
-		if (!empty($this->backup_semaphore)) $this->backup_semaphore->release();
+		if (!empty($this->backup_semaphore)) $this->backup_semaphore->delete();
 
 		$this->restore_composer_autoloaders();
 		
@@ -3862,13 +3863,23 @@ class UpdraftPlus {
 			$rss = $this->get_updraftplus_rssfeed();
 			$this->log('Fetched RSS news feed; result is a: '.get_class($rss));
 			if (is_a($rss, 'SimplePie')) {
-				$feed .= __('Email reports created by UpdraftPlus (free edition) bring you the latest UpdraftPlus.com news', 'updraftplus')." - ".sprintf(__('read more at %s', 'updraftplus'), 'https://updraftplus.com/news/')."\r\n\r\n";
-				foreach ($rss->get_items(0, 6) as $item) {
+				$feed .= __('Email reports created by UpdraftPlus (free edition) bring you the latest TeamUpdraft.com news', 'updraftplus')." - ";
+				/* translators: %s: The TeamUpdraft news URL */
+				$feed .= sprintf(__('read more at %s', 'updraftplus'), 'https://teamupdraft.com/blog/')."\r\n\r\n";
+				$i = 0;
+				foreach ($rss->get_items(0, 20) as $item) {
+					$item_title = $item->get_title();
+					$item_date = $item->get_date('j F Y');
+
+					if ($i >= 6) break;
+					if (empty($item_title)) continue;
+					
 					$feed .= '* ';
-					$feed .= $item->get_title();
-					$feed .= " (".$item->get_date('j F Y').")";
+					$feed .= $item_title;
+					if (!empty($item_date)) $feed .= " (".$item_date.")";
 					// $feed .= ' - '.$item->get_permalink();
 					$feed .= "\r\n";
+					$i++;
 				}
 			}
 			$feed .= "\r\n\r\n";
@@ -5515,7 +5526,7 @@ class UpdraftPlus {
 		} elseif (count($tables_found) >= 0.90 * $php_max_input_vars) {
 			$php_max_input_vars_exceeded = true;
 			// If the amount of tables exceed 90% of the php max input vars then truncate the list to 50% of the php max input vars value
-			$tables_found = array_splice($tables_found, 0, $php_max_input_vars / 2);
+			$tables_found = array_splice($tables_found, 0, intval($php_max_input_vars / 2));
 		}
 
 		$php_max_input_vars_value = false == $php_max_input_vars ? 0 : $php_max_input_vars;
@@ -5541,15 +5552,15 @@ class UpdraftPlus {
 
 			$select_restore_tables .= '<div class="updraftplus_restore_tables_options_container" style="display:none;">';
 
+			$select_table_button = '<p><a href="#" class="updraft-select-all-tables">'.__('Select All', 'updraftplus').'</a> | <a href="#" class="updraft-deselect-all-tables">'.__('Deselect All', 'updraftplus').'</a></p>';
+			$select_restore_tables .= $select_table_button;
+
 			if ($db_scan_timed_out || $php_max_input_vars_exceeded) {
 				if ($db_scan_timed_out) $all_other_table_title = __('The database scan was taking too long and consequently the list of all tables in the database could not be completed.', 'updraftplus').' '.__('This option will ensure all tables not found will be backed up.', 'updraftplus');
 				if ($php_max_input_vars_exceeded) $all_other_table_title = __('The amount of database tables scanned is near or over the php_max_input_vars value so some tables maybe truncated.', 'updraftplus').' '.__('This option will ensure all tables not found will be backed up.', 'updraftplus');
-				$select_restore_tables .= '<input class="updraft_restore_tables_options" id="updraft_restore_table_udp_all_other_tables" checked="checked" type="checkbox" name="updraft_restore_tables_options[]" value="udp_all_other_tables"> ';
-				$select_restore_tables .= '<label for="updraft_restore_table_udp_all_other_tables"  title="'.$all_other_table_title.'">'.__('Include all tables not listed below', 'updraftplus').'</label><br>';
+				$select_restore_tables .= '<div style="margin-bottom:0.7rem;margin-top:0.7rem;"><input class="updraft_restore_tables_options" id="updraft_restore_table_udp_all_other_tables" checked="checked" type="checkbox" name="updraft_restore_tables_options[]" value="udp_all_other_tables"> ';
+				$select_restore_tables .= '<label for="updraft_restore_table_udp_all_other_tables"  title="'.$all_other_table_title.'">'.__('Include all tables not listed below', 'updraftplus').'</label></div>';
 			}
-
-			$select_table_button = '<p><a href="#" class="updraft-select-all-tables">'.__('Select All', 'updraftplus').'</a> | <a href="#" class="updraft-deselect-all-tables">'.__('Deselect All', 'updraftplus').'</a></p>';
-			$select_restore_tables .= $select_table_button;
 
 			foreach ($tables_found as $table) {
 				$checked = $skip_composite_tables && UpdraftPlus_Database_Utility::table_has_composite_private_key($table) ? '' : 'checked="checked"';
