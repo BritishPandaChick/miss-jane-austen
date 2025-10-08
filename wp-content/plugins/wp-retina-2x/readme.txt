@@ -3,9 +3,11 @@ Contributors: TigrouMeow
 Tags: retina, upscale, replace, thumbnail, regenerate
 Donate link: https://www.patreon.com/meowapps
 Requires at least: 6.0
-Tested up to: 6.7
+Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 7.0.2
+Stable tag: 7.0.6
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Optimize your images effortlessly. Replace, regenerate, resize, upscale, improve, transform, and achieve perfect images for your site.
 
@@ -62,16 +64,38 @@ Disable WordPress’ automatic scaling of large images, preventing files with "-
 
 == Changelog ==
 
+= 7.0.6 (2025/10/01) =
+* Fix: Hotfix for PRO version displaying the FREE header incorrectly
+
+= 7.0.5 (2025/09/29) =
+* Update: Renamed "Regenerate" to "Build" and added icons for clearer terminology.
+* Fix: Resolved issues with generating disabled thumbnail sizes.
+* Fix: Verified non-registered sizes are handled correctly.  
+* Fix: Thumbnails regeneration is now optimized to delete unused sizes.  
+* Fix: Fixed display issues.
+
+= 7.0.4 (2025/08/27) =
+* Update: Version synchronization with WordPress.org repository.
+
+= 7.0.3 (2025/08/27) =
+* Fix: Ensure constants are only defined if not already set in simple_html_dom.php.
+* Fix: Use temporary file for palette image conversion to avoid freezing GIF or animated original sources.
+* Add: Debug and Logs features are now separated for better control.
+* Add: Click on thumbnail and title for original size view and edit link.
+* Fix: Preserve WebP sizes when module is disabled for potential restoration.
+* Fix: Properly handle Retina sizes when module is disabled.
+* Update: Sanitize options on load to ensure data integrity.
+* Update: Refactored WebP options handling and ensured defaults are reset when module is disabled.
+
 = 7.0.2 (2025/03/12) =
 * Update: Added a check for WebP and AVIF support before using GD and Imagick.
-* Fix: Corrected a typo for better accuracy.
+* Fix: Corrected typo for better accuracy.
 * Add: Implemented an Imagick handler for WebP and AVIF conversion.
 
 = 7.0.1 (2025/02/17) =
 * Update: Adjusted rendering to align with React 18 deprecation changes.
 * Fix: Corrected display conditions for Retina Full Size uploads.
 * Fix: Ensured AI options reset properly when AI features are disabled.
-* Info: Don't hesitate to [write a review](https://wordpress.org/support/plugin/wp-retina-2x/reviews/#new-post) for the plugin, it really helps. Thank you! 💕
 
 = 7.0.0 (2024/12/22) =
 * Add: Upscaling feature with Claid.ai for high-quality image enhancement.

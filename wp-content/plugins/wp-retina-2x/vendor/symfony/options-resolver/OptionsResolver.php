@@ -215,6 +215,13 @@ class OptionsResolver implements Options
                     $this->defaults[$option] = null;
                 }
 
+                // Ignore previous lazy options if the closure has no second parameter
+                if (!isset($this->lazy[$option]) || !isset($params[1])) {
+                    $this->lazy[$option] = [];
+                }
+
+                // Store closure for later evaluation
+                $this->lazy[$option][] = $value;
                 $this->defined[$option] = true;
 
                 // Make sure the option is processed and is not nested anymore
@@ -229,9 +236,15 @@ class OptionsResolver implements Options
                 $this->defaults[$option] = [];
                 $this->defined[$option] = true;
 
+                // Make sure the option is processed and is not lazy anymore
+                unset($this->resolved[$option], $this->lazy[$option]);
+
                 return $this;
             }
         }
+
+        // This option is not lazy nor nested anymore
+        unset($this->lazy[$option], $this->nested[$option]);
 
         // Yet undefined options can be marked as resolved, because we only need
         // to resolve options with lazy closures, normalizers or validation
@@ -811,6 +824,7 @@ class OptionsResolver implements Options
 
         foreach ((array) $optionNames as $option) {
             unset($this->defined[$option], $this->defaults[$option], $this->required[$option], $this->resolved[$option]);
+            unset($this->lazy[$option], $this->normalizers[$option], $this->allowedTypes[$option], $this->allowedValues[$option], $this->info[$option]);
         }
 
         return $this;
@@ -834,6 +848,7 @@ class OptionsResolver implements Options
         $this->nested = [];
         $this->required = [];
         $this->resolved = [];
+        $this->lazy = [];
         $this->normalizers = [];
         $this->allowedTypes = [];
         $this->allowedValues = [];
@@ -994,6 +1009,29 @@ class OptionsResolver implements Options
                 $resolver->prototypeIndex = null;
                 unset($this->calling[$option]);
             }
+        }
+
+        // Resolve the option if the default value is lazily evaluated
+        if (isset($this->lazy[$option])) {
+            // If the closure is already being called, we have a cyclic
+            // dependency
+            if (isset($this->calling[$option])) {
+                throw new OptionDefinitionException(sprintf('The options "%s" have a cyclic dependency.', $this->formatOptions(array_keys($this->calling))));
+            }
+
+            // The following section must be protected from cyclic
+            // calls. Set $calling for the current $option to detect a cyclic
+            // dependency
+            // BEGIN
+            $this->calling[$option] = true;
+            try {
+                foreach ($this->lazy[$option] as $closure) {
+                    $value = $closure($this, $value);
+                }
+            } finally {
+                unset($this->calling[$option]);
+            }
+            // END
         }
 
         // Validate the type of the resolved option

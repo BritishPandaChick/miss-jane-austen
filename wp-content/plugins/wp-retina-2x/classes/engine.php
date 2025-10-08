@@ -363,16 +363,25 @@ class Meow_WR2X_Engine {
 								return $meta;
 							}
 							
+							$temp_file = $originalfile;
 							if ( imagecolorstotal($image) > 0 ) {
 								$this->core->log( "⚠️ Converting palette image to true color for {$target_format} conversion." );
 								$newImage = imagecreatetruecolor( imagesx( $image ), imagesy( $image ) );
 								imagecopy( $newImage, $image, 0, 0, 0, 0, imagesx( $image ), imagesy( $image ) );
 								imagedestroy( $image );
-								imagepng( $newImage, $originalfile );
+								
+								// Create a temporary file instead of overwriting the original
+								$temp_file = tempnam( sys_get_temp_dir(), 'wr2x_temp_' ) . '.png';
+								imagepng( $newImage, $temp_file );
 								imagedestroy( $newImage );
 							}
 							
-							$this->resize( $originalfile, $meta['sizes'][$name]['width'], $meta['sizes'][$name]['height'], $crop, $webp_file, $customCrop );
+							$this->resize( $temp_file, $meta['sizes'][$name]['width'], $meta['sizes'][$name]['height'], $crop, $webp_file, $customCrop );
+							
+							// Clean up temporary file if it was created
+							if ( $temp_file !== $originalfile && file_exists( $temp_file ) ) {
+								unlink( $temp_file );
+							}
 						} catch ( Exception $e ) {
 							$this->core->log( "❌ [ERROR] GD conversion failed for {$name}: " . $e->getMessage() );
 							$gd_can_convert = false;

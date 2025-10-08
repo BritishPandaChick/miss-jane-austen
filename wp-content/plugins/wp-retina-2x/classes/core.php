@@ -1601,7 +1601,7 @@ class Meow_WR2X_Core {
 
 	function regenerate_thumbnails_optimized( $media_id ) {
 		require_once ABSPATH . 'wp-admin/includes/image.php';
-		do_action( 'wr2x_before_generate_thumbnails', $media_id );
+		//do_action( 'wr2x_before_generate_thumbnails', $media_id );
 		
 		$file = get_attached_file( $media_id );
 		$meta = wp_get_attachment_metadata( $media_id );
@@ -1613,21 +1613,24 @@ class Meow_WR2X_Core {
 		// Get the current registered image sizes
 		$needed_sizes = wp_get_registered_image_subsizes();
 		$option_sizes = $this->get_option( 'sizes' );
-
-		foreach ( $option_sizes as $size ) {
-			if ( array_key_exists( $size['name'], $needed_sizes ) ) {
-				if ( ! $size['enabled'] ) {
-					unset( $needed_sizes[ $size['name'] ] );
-				}
-			}
-		}
+		// Re-index the $option_sizes array by size name for easier access
+		$option_sizes = array_column( $option_sizes, null, 'name' );
+		$needed_sizes = array_merge( $needed_sizes, $option_sizes );
 		
 		foreach ( $needed_sizes as $size => $size_data ) {
 			$image_path = path_join( dirname( $file ), $meta['sizes'][ $size ]['file'] ?? '' );
-			if ( isset( $meta['sizes'][ $size ] ) && file_exists( $image_path ) && filesize( $image_path ) > 0 ) {
-				// Thumbnail exists, no need to regenerate it.
+			$is_disabled = $option_sizes[ $size ]['enabled'] == false;
+			$file_exists = isset( $meta['sizes'][ $size ] ) && file_exists( $image_path ) && filesize( $image_path ) > 0;
+
+			if( $is_disabled ) {
+				if ( $file_exists ) {
+					// If the size is disabled, we delete the file and remove it from metadata
+					@unlink( $image_path );
+					unset( $meta['sizes'][ $size ] );
+				}
 				continue;
 			}
+
 
 			// Generate the thumbnail size.
 			$resized = image_make_intermediate_size( $file, $size_data['width'], $size_data['height'], $size_data['crop'] ?? true );

@@ -733,17 +733,18 @@ class Meow_WR2X_Rest
 		$optimized = isset( $params['optimized'] ) ? (bool)$params['optimized'] : false;
 		$ai_generate = isset( $params['ai_generate'] ) ? (bool)$params['ai_generate'] : false;
 
-
-		$data =[ 
-			'success' => true,
-			'data' => $info,
-		];
-
 		// Check errors
 		if ( empty( $mediaId ) ) {
 			return new WP_REST_Response( [ 'success' => false, 'message' => "The Media ID is required." ] );
 		}
 
+
+		$response =[ 
+			'success' => true,
+			'data' => [],
+		];
+
+		
 		// Regenerate
 		if ( $optimized ) {
 			$this->core->regenerate_thumbnails_optimized( $mediaId );
@@ -757,14 +758,19 @@ class Meow_WR2X_Rest
 			$res = $this->core->regenerate_thumbnails_ai( $mediaId );
 			
 			if ( is_wp_error( $res ) ) {
-				return new WP_REST_Response( [ 'success' => false, 'message' => $res->get_error_message() ], 200 );
+				$response['success'] = false;
+				$response['message'] = $res->get_error_message();
+
+				return new WP_REST_Response( $response, 200 );
 			}
 
-			$data['history'] = $res;
+			$response['history'] = $res;
 		}
 
 		$info = $this->core->get_media_status_one( $mediaId );
-		return new WP_REST_Response( $data, 200 );
+		$response['data'] = $info;
+
+		return new WP_REST_Response( $response, 200 );
 	}
 
 	function rest_optimize( $request ) {
