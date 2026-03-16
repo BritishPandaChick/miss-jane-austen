@@ -261,7 +261,14 @@ class Meow_WR2X_Engine {
 		$originalfile = $meta['file'];
 		$pathinfo = pathinfo( $originalfile );
 		$original_basename = $pathinfo['basename'];
+		$original_extension = strtolower( $pathinfo['extension'] );
 		$basepath = trailingslashit( $uploads['basedir'] ) . $pathinfo['dirname'];
+
+		$ignored_extensions = $this->core->get_option( 'webp_ignored_extensions', ['gif', 'svg', 'bmp', 'tiff'] );
+		if( in_array( $original_extension, $ignored_extensions ) ) {
+			$this->core->log( "WebP generation skipped for '{$original_basename}' due to its extension '{$original_extension}' being in the ignored extensions list." );
+			return $meta;
+		}
 
 		$issue = false;
 		$id = $this->core->get_attachment_id( $meta['file'] );

@@ -58,6 +58,16 @@ class Meow_WR2X_Rest
 			'permission_callback' => array( $this->core, 'can_access_settings' ),
 			'callback' => array( $this, 'rest_check_optimizers' )
 		) );
+		register_rest_route( $this->namespace, '/ai_image_sizes/', array(
+			'methods' => 'POST',
+			'permission_callback' => array( $this->core, 'can_access_settings' ),
+			'callback' => array( $this, 'rest_ai_image_sizes' )
+		) );
+		register_rest_route( $this->namespace, '/ai_retina_sizes/', array(
+			'methods' => 'POST',
+			'permission_callback' => array( $this->core, 'can_access_settings' ),
+			'callback' => array( $this, 'rest_ai_retina_sizes' )
+		) );
 		register_rest_route( $this->namespace, '/get_logs', array(
 			'methods' => 'GET',
 			'permission_callback' => array( $this->core, 'can_access_features' ),
@@ -307,6 +317,116 @@ class Meow_WR2X_Rest
 		return false;
 	}
 	
+	function rest_ai_image_sizes() {
+		global $mwai;
+		if ( empty( $mwai ) ) {
+			return new WP_REST_Response( [ 'success' => false, 'message' => 'AI Engine is not available.' ], 400 );
+		}
+
+		$sizes = $this->core->get_image_sizes( ARRAY_A );
+		$theme = wp_get_theme()->get( 'Name' );
+
+		$sizes_description = "";
+		foreach ( $sizes as $size ) {
+			$status = $size['enabled'] ? 'enabled' : 'disabled';
+			$sizes_description .= "- {$size['name']}: {$size['width']}x{$size['height']} ({$status})\n";
+		}
+
+		$prompt = "You are a WordPress image optimization expert. The site uses the theme '{$theme}'. " .
+			"Here are all registered image sizes:\n\n{$sizes_description}\n" .
+			"Your goal: recommend the **minimal, optimal set** of sizes. WordPress uses srcset to let the browser " .
+			"pick the best image for each viewport — sizes don't need to be pixel-perfect, they just need to provide " .
+			"good coverage across common screen widths (mobile, tablet, desktop).\n\n" .
+			"Guidelines:\n" .
+			"- KEEP: thumbnail (used in admin), medium, large — these are WordPress core and widely used.\n" .
+			"- medium_large (768px): rarely useful, usually redundant between medium and large.\n" .
+			"- 1536x1536 and 2048x2048: WordPress scaled sizes, often redundant if large is already 1024px+.\n" .
+			"- Look for REDUNDANT sizes: if two sizes are close in width (within ~100-150px), the smaller one is likely enough.\n" .
+			"- Theme/plugin sizes: keep only if they serve a unique breakpoint not already covered.\n" .
+			"- Fewer sizes = faster uploads, less disk space, and srcset still works perfectly.\n" .
+			"- Be aggressive about disabling truly redundant sizes, but conservative with clearly unique breakpoints.\n\n" .
+			"Reply ONLY with valid JSON in this exact format, no other text:\n" .
+			"{ \"sizes\": [ { \"name\": \"size_name\", \"enabled\": true/false, \"reason\": \"short reason\" } ] }";
+
+		try {
+			$response = $mwai->simpleTextQuery( $prompt );
+			// Extract JSON from response (in case of markdown wrapping)
+			if ( preg_match( '/\{[\s\S]*\}/', $response, $matches ) ) {
+				$response = $matches[0];
+			}
+			$data = json_decode( $response, true );
+			if ( empty( $data ) || !isset( $data['sizes'] ) ) {
+				return new WP_REST_Response( [ 'success' => false, 'message' => 'Could not parse AI response.' ], 500 );
+			}
+			return new WP_REST_Response( [ 'success' => true, 'data' => $data['sizes'] ], 200 );
+		}
+		catch ( Exception $e ) {
+			return new WP_REST_Response( [ 'success' => false, 'message' => $e->getMessage() ], 500 );
+		}
+	}
+
+	function rest_ai_retina_sizes() {
+		global $mwai;
+		if ( empty( $mwai ) ) {
+			return new WP_REST_Response( [ 'success' => false, 'message' => 'AI Engine is not available.' ], 400 );
+		}
+
+		$sizes = $this->core->get_image_sizes( ARRAY_A );
+		$theme = wp_get_theme()->get( 'Name' );
+
+		// Collect enabled sizes sorted by width for coverage analysis
+		$enabled_sizes = array_filter( $sizes, function( $s ) { return $s['enabled']; } );
+		$widths = array_map( function( $s ) { return (int) $s['width']; }, $enabled_sizes );
+
+		$sizes_description = "";
+		foreach ( $enabled_sizes as $size ) {
+			$retina_status = $size['retina'] ? 'retina enabled' : 'retina disabled';
+			$retina_width = (int) $size['width'] * 2;
+			// Check if another enabled size already covers the @2x width (within 20%)
+			$covered_by = null;
+			foreach ( $enabled_sizes as $other ) {
+				if ( $other['name'] === $size['name'] ) continue;
+				$other_w = (int) $other['width'];
+				if ( $other_w >= $retina_width * 0.8 && $other_w <= $retina_width * 1.2 ) {
+					$covered_by = $other['name'];
+					break;
+				}
+			}
+			$coverage_note = $covered_by ? " [NOTE: @2x={$retina_width}px is ~covered by '{$covered_by}' at {$other_w}px]" : "";
+			$sizes_description .= "- {$size['name']}: {$size['width']}x{$size['height']} ({$retina_status}){$coverage_note}\n";
+		}
+
+		$prompt = "You are a WordPress image optimization expert. The site uses the theme '{$theme}'. " .
+			"Here are the enabled image sizes:\n\n{$sizes_description}\n" .
+			"Your goal: recommend which sizes should have **Retina (@2x) images** generated.\n\n" .
+			"KEY INSIGHT: WordPress uses srcset, so the browser picks the best available image for the screen. " .
+			"If a size's @2x width (~double) is already covered by another existing normal size, " .
+			"retina is REDUNDANT for that size — srcset will serve the larger normal image on HiDPI screens anyway. " .
+			"Sizes marked with [NOTE: @2x covered by...] are candidates for skipping retina.\n\n" .
+			"Other guidelines:\n" .
+			"- thumbnail: usually only shown in admin, retina rarely needed.\n" .
+			"- Very large sizes (1536+): @2x would require 3000+ px originals, usually impractical.\n" .
+			"- Medium and large are most commonly seen by visitors — retina is most impactful there if not already covered.\n" .
+			"- Balance quality vs. disk space: each retina image doubles storage for that size.\n\n" .
+			"Reply ONLY with valid JSON in this exact format, no other text:\n" .
+			"{ \"sizes\": [ { \"name\": \"size_name\", \"enabled\": true/false, \"reason\": \"short reason\" } ] }";
+
+		try {
+			$response = $mwai->simpleTextQuery( $prompt );
+			if ( preg_match( '/\{[\s\S]*\}/', $response, $matches ) ) {
+				$response = $matches[0];
+			}
+			$data = json_decode( $response, true );
+			if ( empty( $data ) || !isset( $data['sizes'] ) ) {
+				return new WP_REST_Response( [ 'success' => false, 'message' => 'Could not parse AI response.' ], 500 );
+			}
+			return new WP_REST_Response( [ 'success' => true, 'data' => $data['sizes'] ], 200 );
+		}
+		catch ( Exception $e ) {
+			return new WP_REST_Response( [ 'success' => false, 'message' => $e->getMessage() ], 500 );
+		}
+	}
+
 	function rest_check_optimizers() {
 		if ( ! function_exists( 'exec' ) ) {
 			return new WP_REST_Response( array( 
@@ -832,6 +952,7 @@ class Meow_WR2X_Rest
 		$options = $this->core->get_all_options();
 		$options['easyio_domain'] = '';
 		$options['easyio_plan'] = '';
+		$options['webp_force_with_easyio'] = false;
 		update_option( $this->core->get_option_name(), $options );
 		return new WP_REST_Response([ 'success' => true ], 200 );
 	}

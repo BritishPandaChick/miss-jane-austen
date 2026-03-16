@@ -69,7 +69,15 @@ class Meow_WR2X_Core {
 		}
 
 		if ( $options['gif_thumbnails_disabled'] ?? false ) {
-			add_filter( 'intermediate_image_sizes_advanced', array( $this, 'disable_upload_sizes' ), 10, 2);
+			add_filter( 'intermediate_image_sizes_advanced', array( $this, 'disable_upload_sizes_gif' ), 10, 2);
+		}
+
+		if( $options['avif_thumbnails_disabled'] ?? false ) {
+			add_filter( 'intermediate_image_sizes_advanced', array( $this, 'disable_upload_sizes_avif' ), 10, 2);
+		}
+
+		if ( $options['webp_thumbnails_disabled'] ?? false ) {
+			add_filter( 'intermediate_image_sizes_advanced', array( $this, 'disable_upload_sizes_webp' ), 10, 2);
 		}
 
 		// Disable Image-Sizes based on Settings.
@@ -77,7 +85,7 @@ class Meow_WR2X_Core {
 			$this->disable_image_sizes();
 		}
 
-		if ( MeowCommon_Helpers::is_rest() ) {
+		if ( MeowKit_WR2X_Helpers::is_rest() ) {
 			new Meow_WR2X_Rest( $this, $this->engine );
 			return;
 		}
@@ -100,7 +108,8 @@ class Meow_WR2X_Core {
 		// Admin Screens
 		if ( is_admin() ) {
 			$this->admin = new Meow_WR2X_Admin( $this );
-			if ( !$options["hide_retina_dashboard"] ) {
+			$dashboard_enabled = $options['module_dashboard_enabled'] ?? !$options['hide_retina_dashboard'];
+			if ( $dashboard_enabled ) {
 				new Meow_WR2X_Dashboard( $this );
 			}
 			if ( !$options["hide_retina_column"] ) {
@@ -230,7 +239,7 @@ class Meow_WR2X_Core {
 		return $sizes;
 	}
 
-	function disable_upload_sizes( $sizes, $metadata ) {
+	function disable_upload_sizes_gif( $sizes, $metadata ) {
 		// Get filetype data.
 		$filetype = wp_check_filetype( $metadata['file'] );
 
@@ -241,6 +250,34 @@ class Meow_WR2X_Core {
 		}
 
 		// Return sizes you want to create from image (None if image is gif.)
+		return $sizes;
+	}
+
+	function disable_upload_sizes_avif( $sizes, $metadata ) {
+		// Get filetype data.
+		$filetype = wp_check_filetype( $metadata['file'] );
+
+		// Check if is avif.
+		if( $filetype['type'] == 'image/avif' ) {
+			// Unset sizes if file is avif.
+			$sizes = array();
+		}
+
+		// Return sizes you want to create from image (None if image is avif.)
+		return $sizes;
+	}
+
+	function disable_upload_sizes_webp( $sizes, $metadata ) {
+		// Get filetype data.
+		$filetype = wp_check_filetype( $metadata['file'] );
+
+		// Check if is webp.
+		if( $filetype['type'] == 'image/webp' ) {
+			// Unset sizes if file is webp.
+			$sizes = array();
+		}
+
+		// Return sizes you want to create from image (None if image is webp.)
 		return $sizes;
 	}
 
@@ -1267,19 +1304,28 @@ class Meow_WR2X_Core {
 			}
 		}
 
-		$home_url = parse_url( home_url() );
-		$uploads_url = trailingslashit( $this->get_upload_root_url() );
-		$uploads_url_cdn = str_replace( $home_url['host'], $cdn_domain, $uploads_url );
+		// Parse the incoming URL to extract its host
+		$parsed_url = parse_url( $url );
+		if ( empty( $parsed_url['host'] ) ) {
+			return $url;
+		}
 
 		// Perform additional CDN check (Issue #1631 by Martin)
-		if ( strpos( $url, $uploads_url_cdn ) === 0 ) {
+		if ( $parsed_url['host'] === $cdn_domain ) {
 			$this->log( "URL already has CDN: $url" );
 			return $url;
 		}
+
+		// Only rewrite URLs that point to the uploads directory
+		$uploads_path = parse_url( $this->get_upload_root_url(), PHP_URL_PATH );
+		if ( empty( $uploads_path ) || strpos( $parsed_url['path'] ?? '', $uploads_path ) === false ) {
+			return $url;
+		}
+
 		$this->log( "URL before CDN: $url" );
 		$queryUrl = !empty( $cdn_params ) ? ( '?' . http_build_query( $cdn_params ) ) : '';
-		$site_url = preg_replace( '#^https?://#', '', rtrim( get_site_url(), '/' ) );
-		$new_url = str_replace( $site_url, $cdn_domain, $url ) . $queryUrl;
+		$url_host = $parsed_url['host'];
+		$new_url = str_replace( '//' . $url_host, '//' . $cdn_domain, $url ) . $queryUrl;
 		$this->log( "URL with CDN: $new_url" );
 		return $new_url;
 	}
@@ -1601,8 +1647,7 @@ class Meow_WR2X_Core {
 
 	function regenerate_thumbnails_optimized( $media_id ) {
 		require_once ABSPATH . 'wp-admin/includes/image.php';
-		//do_action( 'wr2x_before_generate_thumbnails', $media_id );
-		
+
 		$file = get_attached_file( $media_id );
 		$meta = wp_get_attachment_metadata( $media_id );
 
@@ -1610,31 +1655,36 @@ class Meow_WR2X_Core {
 			$meta = array( 'sizes' => array() );
 		}
 
-		// Get the current registered image sizes
 		$needed_sizes = wp_get_registered_image_subsizes();
-		$option_sizes = $this->get_option( 'sizes' );
-		// Re-index the $option_sizes array by size name for easier access
-		$option_sizes = array_column( $option_sizes, null, 'name' );
-		$needed_sizes = array_merge( $needed_sizes, $option_sizes );
-		
-		foreach ( $needed_sizes as $size => $size_data ) {
-			$image_path = path_join( dirname( $file ), $meta['sizes'][ $size ]['file'] ?? '' );
-			$is_disabled = $option_sizes[ $size ]['enabled'] == false;
-			$file_exists = isset( $meta['sizes'][ $size ] ) && file_exists( $image_path ) && filesize( $image_path ) > 0;
+		$disabled_sizes = $this->get_option( 'disabled_sizes', array() );
+		$dir = dirname( $file );
 
-			if( $is_disabled ) {
-				if ( $file_exists ) {
-					// If the size is disabled, we delete the file and remove it from metadata
+		// Remove disabled sizes from needed list (remove_image_size doesn't
+		// work for WP built-in sizes, so they may still be in the list)
+		foreach ( $disabled_sizes as $size ) {
+			unset( $needed_sizes[ $size ] );
+		}
+
+		// Clean up thumbnails for disabled or unregistered sizes (ghost sizes
+		// from old themes/plugins that are no longer active)
+		foreach ( array_keys( $meta['sizes'] ) as $size ) {
+			if ( in_array( $size, $disabled_sizes ) || !isset( $needed_sizes[ $size ] ) ) {
+				$image_path = path_join( $dir, $meta['sizes'][ $size ]['file'] );
+				if ( file_exists( $image_path ) ) {
 					@unlink( $image_path );
-					unset( $meta['sizes'][ $size ] );
 				}
+				unset( $meta['sizes'][ $size ] );
+			}
+		}
+
+		// Regenerate only missing enabled sizes
+		foreach ( $needed_sizes as $size => $size_data ) {
+			$existing_file = $meta['sizes'][ $size ]['file'] ?? '';
+			$existing_path = $existing_file ? path_join( $dir, $existing_file ) : '';
+			if ( $existing_path && file_exists( $existing_path ) && filesize( $existing_path ) > 0 ) {
 				continue;
 			}
-
-
-			// Generate the thumbnail size.
 			$resized = image_make_intermediate_size( $file, $size_data['width'], $size_data['height'], $size_data['crop'] ?? true );
-
 			if ( $resized ) {
 				$meta['sizes'][ $size ] = $resized;
 			}
@@ -1989,6 +2039,10 @@ class Meow_WR2X_Core {
 					$result[$name] = 'IGNORED';
 					continue;
 				}
+				if ( isset( $attr['enabled'] ) && !$attr['enabled'] ) {
+					$result[$name] = 'IGNORED';
+					continue;
+				}
 				// Check if the file related to this size is present
 				$pathinfo = null;
 				$retina_file = null;
@@ -2024,7 +2078,7 @@ class Meow_WR2X_Core {
 
 		// Full-Size (if required in the settings)
 		$fullsize_required = $this->get_option( "full_size" ) && class_exists( 'MeowPro_WR2X_Core' );
-		$retina_file = trailingslashit( $pathinfo_fullsize['dirname'] ) . $pathinfo_fullsize['filename'] . 
+		$retina_file = trailingslashit( $pathinfo_fullsize['dirname'] ) . $pathinfo_fullsize['filename'] .
 			$this->retina_extension() . $pathinfo_fullsize['extension'];
 		if ( $retina_file && file_exists( $retina_file ) )
 			$result['full-size'] = 'EXISTS';
@@ -2034,16 +2088,16 @@ class Meow_WR2X_Core {
 		if ( $output_type === ARRAY_A ) {
 			$new_results = array();
 			foreach ( $result as $key => $value ) {
-				array_push( $new_results, array( 
+				array_push( $new_results, array(
 					'name' => $key,
 					'shortname' => self::size_shortname( $key ),
 					'status' => is_array( $value ) ? 'CANNOT' : $value,
 					'required' => is_array( $value ) ? $value : null
-					) 
+					)
 				);
 			}
 			return $new_results;
-		} 
+		}
 
 		return $result;
 	}
@@ -2065,6 +2119,10 @@ class Meow_WR2X_Core {
 			foreach ( $sizes as $name => $attr ) {
 				$validSize = !empty( $attr['width'] ) || !empty( $attr['height'] );
 				if ( !$validSize ) {
+					$result[$name] = 'IGNORED';
+					continue;
+				}
+				if ( isset( $attr['enabled'] ) && !$attr['enabled'] ) {
 					$result[$name] = 'IGNORED';
 					continue;
 				}
@@ -2151,6 +2209,10 @@ class Meow_WR2X_Core {
 			foreach ( $sizes as $name => $attr ) {
 				$validSize = !empty( $attr['width'] ) || !empty( $attr['height'] );
 				if ( !$validSize ) {
+					$result[$name] = 'IGNORED';
+					continue;
+				}
+				if ( isset( $attr['enabled'] ) && !$attr['enabled'] ) {
 					$result[$name] = 'IGNORED';
 					continue;
 				}
@@ -2317,6 +2379,7 @@ class Meow_WR2X_Core {
 			'disabled_sizes' => [],
 			'big_image_size_threshold' => false,
 			'hide_retina_dashboard' => false,
+			'module_dashboard_enabled' => true,
 			'hide_retina_column' => true,
 			'hide_optimize' => true,
 			'auto_generate' => false,
@@ -2335,25 +2398,31 @@ class Meow_WR2X_Core {
 			'picturefill_noscript' => false,
 			'image_replace' => false,
 			'sizes' => [],
-			'module_retina_enabled' => true,
+			'module_imagesizes_enabled' => true,
+			'module_retina_enabled' => false,
 			'module_optimize_enabled' => true,
 			'module_ui_enabled' => true,
-			'gif_thumbnails_disabled' => false,
+			'gif_thumbnails_disabled' => true,
+			'avif_thumbnails_disabled' => false,
+			'webp_thumbnails_disabled' => false,
 			'hide_admin_messages' => false,
 			'logs_path' => null,
 			'custom_image_sizes' => [],
 			'legacy_build_thumbnails' => false,
+			'module_devtools' => false,
 
 
 
 			//Modern Image Formats
 			'module_webp_enabled' => true,
+			'webp_force_with_easyio' => false,
 			'webp_full_size' => false,
 			'generate_avif' => false,
 			'webp_auto_generate' => false,
 			'webp_retina_sizes' => [],
 			'webp_sizes' => [],
 			'webp_method' => 'none',
+			'webp_ignored_extensions' => ['gif', 'svg', 'bmp', 'tiff'],
 
 			// AI
 			'module_ai_enabled' => false,
@@ -2456,6 +2525,11 @@ class Meow_WR2X_Core {
 			delete_option( 'wr2x_' . $option );
 			$hasChanges = true;
 		}
+		// Migration: derive module_dashboard_enabled from hide_retina_dashboard
+		if ( !array_key_exists( 'module_dashboard_enabled', $options ) && array_key_exists( 'hide_retina_dashboard', $options ) ) {
+			$options['module_dashboard_enabled'] = !$options['hide_retina_dashboard'];
+			$hasChanges = true;
+		}
 		if ( empty( $options['sizes'] ) ) {
 			$options['sizes'] = $this->get_image_sizes( ARRAY_A, $options );
 			$hasChanges = true;
@@ -2492,6 +2566,23 @@ class Meow_WR2X_Core {
 		$this->webp_retina_sizes = $options['webp_retina_sizes'] ?? array();
 
 		$options['sizes'] = $this->get_image_sizes( ARRAY_A, $options );
+
+		// Keep hide_retina_dashboard in sync with module_dashboard_enabled
+		$options['hide_retina_dashboard'] = !$options['module_dashboard_enabled'];
+
+		// Both Easy IO and Modern Formats should not be enabled at the same time
+		if ( $options['module_optimize_enabled'] && $options['module_webp_enabled'] ) {
+			if ( !empty( $options['easyio_domain'] ) ) {
+				$options['module_webp_enabled'] = false;
+			} else {
+				$options['module_optimize_enabled'] = false;
+			}
+		}
+
+		// Easy IO auto-disables Modern Formats unless user explicitly forces it
+		if ( !empty( $options['easyio_domain'] ) && !$options['webp_force_with_easyio'] ) {
+			$options['module_webp_enabled'] = false;
+		}
 
 		if( !$options['module_webp_enabled'] ) {
 

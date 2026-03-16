@@ -3,7 +3,7 @@
 register_deactivation_hook( 'Meow_WR2X_Admin', 'wr2x_deactivate' );
 register_activation_hook( 'Meow_WR2X_Admin', 'wr2x_activate' );
 
-class Meow_WR2X_Admin extends MeowCommon_Admin {
+class Meow_WR2X_Admin extends MeowKit_WR2X_Admin {
 
 	public $core = null;
 
